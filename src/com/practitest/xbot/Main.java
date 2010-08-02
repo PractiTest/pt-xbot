@@ -9,7 +9,6 @@ import org.xml.sax.SAXException;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import javax.swing.text.DateFormatter;
 import javax.xml.parsers.ParserConfigurationException;
 import java.awt.*;
 import java.awt.event.ActionEvent;
@@ -19,7 +18,6 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.security.NoSuchAlgorithmException;
 import java.text.DateFormat;
-import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
@@ -64,7 +62,7 @@ public class Main {
 
     public Main(int listeningPort, boolean noTrayIcon) throws Exception {
         loadSettings();
-        
+
         testRunnerLog = new LinkedList<String>();
         this.listeningPort = listeningPort;
         lock = new ReentrantLock();
@@ -207,7 +205,7 @@ public class Main {
                     PrintWriter out = response.getWriter();
                     out.println("<html><head><meta http-equiv=\"refresh\" content=\"5\" /><title>PractiTest xBot log</title></head>");
                     out.println("<body><h1>PractiTest xBot log</h1><div>");
-                    synchronized(testRunnerLog) {
+                    synchronized (testRunnerLog) {
                         for (String message : testRunnerLog) {
                             out.println("<p>");
                             out.println(message);
