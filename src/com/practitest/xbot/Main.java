@@ -9,6 +9,7 @@ import org.xml.sax.SAXException;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.swing.text.DateFormatter;
 import javax.xml.parsers.ParserConfigurationException;
 import java.awt.*;
 import java.awt.event.ActionEvent;
@@ -17,8 +18,9 @@ import java.io.*;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.security.NoSuchAlgorithmException;
-import java.util.Arrays;
-import java.util.Properties;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Condition;
@@ -41,6 +43,7 @@ public class Main {
 
     private static final int DEFAULT_LISTENING_PORT = 18080;
     private static final int TEST_RUNNER_DELAY = 60;
+    private static final int MAX_TEST_RUNNER_LOG = 10;
 
     private Image trayIconImageReady;
     private Image trayIconImageRunning;
@@ -53,6 +56,7 @@ public class Main {
     private Server theServer;
     private AtomicReference<Client> theClient = new AtomicReference<Client>();
     private ScheduledFuture<?> testRunner;
+    private final Deque<String> testRunnerLog;
 
     private String apiKey = "";
     private String apiSecretKey = "";
@@ -60,6 +64,8 @@ public class Main {
 
     public Main(int listeningPort, boolean noTrayIcon) throws Exception {
         loadSettings();
+        
+        testRunnerLog = new LinkedList<String>();
         this.listeningPort = listeningPort;
         lock = new ReentrantLock();
         exitCondition = lock.newCondition();
@@ -195,6 +201,21 @@ public class Main {
                     initializeClient();
                     response.sendRedirect("/preferences");
                     ((Request) request).setHandled(true);
+                } else if (target.equals("/log")) {
+                    response.setContentType("text/html");
+                    response.setStatus(HttpServletResponse.SC_OK);
+                    PrintWriter out = response.getWriter();
+                    out.println("<html><head><meta http-equiv=\"refresh\" content=\"5\" /><title>PractiTest xBot log</title></head>");
+                    out.println("<body><h1>PractiTest xBot log</h1><div>");
+                    synchronized(testRunnerLog) {
+                        for (String message : testRunnerLog) {
+                            out.println("<p>");
+                            out.println(message);
+                            out.println("</p>");
+                        }
+                    }
+                    out.println("</div></body></html>");
+                    ((Request) request).setHandled(true);
                 }
             }
         });
@@ -240,6 +261,19 @@ public class Main {
                 }
             });
             popup.add(openURLItem);
+            MenuItem logItem = new MenuItem("Log");
+            logItem.addActionListener(new ActionListener() {
+                public void actionPerformed(ActionEvent event) {
+                    try {
+                        Desktop.getDesktop().browse(new URI("http://localhost:" + listeningPort + "/log"));
+                    } catch (IOException e) {
+                        logger.severe("Failed to open URL: " + e.getMessage());
+                    } catch (URISyntaxException e) {
+                        logger.severe("Failed to open URL: " + e.getMessage());
+                    }
+                }
+            });
+            popup.add(logItem);
 
             trayIcon = new TrayIcon(theClient.get() != null ? trayIconImageReady : trayIconImageNotConfigured, XBOT_TRAY_CAPTION, popup);
 
@@ -276,10 +310,12 @@ public class Main {
                     try {
                         Client.Task task = client.nextTask();
                         if (task != null) {
+                            addTestRunnerLog("Running [" + task.getPathToTestApplication() + "]...");
                             trayIcon.setImage(trayIconImageRunning);
                             trayIcon.displayMessage(XBOT_TRAY_CAPTION, "PractiTest xBot is running task", TrayIcon.MessageType.INFO);
                             Process childProcess = Runtime.getRuntime().exec(task.getPathToTestApplication());
                             int exitCode = childProcess.waitFor();
+                            addTestRunnerLog("Finished [" + task.getPathToTestApplication() + "] with exit code " + exitCode + ", uploading test results...");
                             java.util.List<File> taskResultFiles = null;
                             File taskResultFilesDir = new File(task.getPathToTestResults());
                             if (taskResultFilesDir.isDirectory()) {
@@ -290,6 +326,7 @@ public class Main {
                                 }));
                             }
                             client.uploadResult(new Client.TaskResult(task.getId(), task.getProjectId(), exitCode, taskResultFiles));
+                            addTestRunnerLog("Finished uploading test results.");
                             trayIcon.setImage(trayIconImageReady);
                             trayIcon.displayMessage(XBOT_TRAY_CAPTION, "PractiTest xBot finished running task, ready for the next one", TrayIcon.MessageType.INFO);
                         }
@@ -324,5 +361,16 @@ public class Main {
                 logger.info("TestRunner finished, going to sleep.");
             }
         }, TEST_RUNNER_DELAY, TEST_RUNNER_DELAY, TimeUnit.SECONDS);
+    }
+
+    private void addTestRunnerLog(String message) {
+        synchronized (testRunnerLog) {
+            StringBuilder sb = new StringBuilder();
+            sb.append(DateFormat.getDateTimeInstance().format(new Date())).append(" :: ").append(message);
+            testRunnerLog.addFirst(sb.toString());
+            if (testRunnerLog.size() > MAX_TEST_RUNNER_LOG) {
+                testRunnerLog.removeLast();
+            }
+        }
     }
 }
