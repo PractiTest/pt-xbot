@@ -13,13 +13,28 @@ import javax.xml.parsers.ParserConfigurationException;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.io.*;
+import java.io.File;
+import java.io.FileFilter;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.PrintWriter;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URL;
 import java.security.NoSuchAlgorithmException;
 import java.text.DateFormat;
-import java.util.*;
-import java.util.concurrent.*;
+import java.util.Arrays;
+import java.util.Date;
+import java.util.Deque;
+import java.util.LinkedList;
+import java.util.Properties;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
@@ -27,8 +42,6 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
 
 /**
- * TODO: pack everything including images in one jar.
- *
  * @author stask.
  */
 public class Main {
@@ -147,7 +160,7 @@ public class Main {
         settings.setProperty("api_secret_key", apiSecretKey);
         try {
             settings.store(new FileWriter(new File(System.getProperty("user.dir"), "xbot.properties")),
-                    "Please do not change this file manually, it'll be re-written by the application anyway.");
+                           "Please do not change this file manually, it'll be re-written by the application anyway.");
         } catch (IOException e) {
             logger.severe("Failed to store application settings: " + e.getMessage());
         }
@@ -224,30 +237,14 @@ public class Main {
         if (SystemTray.isSupported()) {
             SystemTray tray = SystemTray.getSystemTray();
 
-            Image trayIconImageNotConfigured = Toolkit.getDefaultToolkit().getImage("images/trayNotConfigured.png");
-            trayIconImageReady = Toolkit.getDefaultToolkit().getImage("images/trayReady.png");
-            trayIconImageRunning = Toolkit.getDefaultToolkit().getImage("images/trayRunning.png");
-            trayIconImageError = Toolkit.getDefaultToolkit().getImage("images/trayError.png");
-
-            ActionListener exitListener = new ActionListener() {
-                public void actionPerformed(ActionEvent event) {
-                    logger.info("Exiting...");
-                    lock.lock();
-                    try {
-                        exitCondition.signal();
-                    } catch (IllegalMonitorStateException ignore) {
-                    } finally {
-                        lock.unlock();
-                    }
-                }
-            };
+            Image trayIconImageNotConfigured = loadImage("images/trayNotConfigured.png");
+            trayIconImageReady = loadImage("images/trayReady.png");
+            trayIconImageRunning = loadImage("images/trayRunning.png");
+            trayIconImageError = loadImage("images/trayError.png");
 
             PopupMenu popup = new PopupMenu();
-            MenuItem defaultItem = new MenuItem("Exit");
-            defaultItem.addActionListener(exitListener);
-            popup.add(defaultItem);
-            MenuItem openURLItem = new MenuItem("Preferences");
-            openURLItem.addActionListener(new ActionListener() {
+            MenuItem preferencesItem = new MenuItem("Preferences");
+            preferencesItem.addActionListener(new ActionListener() {
                 public void actionPerformed(ActionEvent event) {
                     try {
                         Desktop.getDesktop().browse(new URI("http://localhost:" + listeningPort + "/preferences"));
@@ -258,7 +255,7 @@ public class Main {
                     }
                 }
             });
-            popup.add(openURLItem);
+            popup.add(preferencesItem);
             MenuItem logItem = new MenuItem("Log");
             logItem.addActionListener(new ActionListener() {
                 public void actionPerformed(ActionEvent event) {
@@ -272,6 +269,21 @@ public class Main {
                 }
             });
             popup.add(logItem);
+            popup.addSeparator();
+            MenuItem exitItem = new MenuItem("Exit");
+            exitItem.addActionListener(new ActionListener() {
+                public void actionPerformed(ActionEvent event) {
+                    logger.info("Exiting...");
+                    lock.lock();
+                    try {
+                        exitCondition.signal();
+                    } catch (IllegalMonitorStateException ignore) {
+                    } finally {
+                        lock.unlock();
+                    }
+                }
+            });
+            popup.add(exitItem);
 
             trayIcon = new TrayIcon(theClient.get() != null ? trayIconImageReady : trayIconImageNotConfigured, XBOT_TRAY_CAPTION, popup);
 
@@ -303,6 +315,7 @@ public class Main {
         testRunner = scheduler.scheduleWithFixedDelay(new Runnable() {
             public void run() {
                 logger.info("TestRunner is awake");
+                addTestRunnerLog("TestRunner is awake");
                 Client client = theClient.get();
                 if (client != null) {
                     try {
@@ -332,31 +345,39 @@ public class Main {
                         trayIcon.setImage(trayIconImageError);
                         trayIcon.displayMessage(XBOT_TRAY_CAPTION, "PractiTest xBot failed to run task: " + e.getMessage(), TrayIcon.MessageType.ERROR);
                         logger.severe("Error occurred during communication with PractiTest server: " + e.getMessage());
+                        addTestRunnerLog("Error occurred during communication with PractiTest server: " + e.getMessage());
                     } catch (NoSuchAlgorithmException e) {
                         trayIcon.setImage(trayIconImageError);
                         trayIcon.displayMessage(XBOT_TRAY_CAPTION, "PractiTest xBot failed to run task: " + e.getMessage(), TrayIcon.MessageType.ERROR);
                         logger.severe("Error occurred during communication with PractiTest server: " + e.getMessage());
+                        addTestRunnerLog("Error occurred during communication with PractiTest server: " + e.getMessage());
                     } catch (ParserConfigurationException e) {
                         trayIcon.setImage(trayIconImageError);
                         trayIcon.displayMessage(XBOT_TRAY_CAPTION, "PractiTest xBot failed to run task: " + e.getMessage(), TrayIcon.MessageType.ERROR);
                         logger.severe("Error occurred during communication with PractiTest server: " + e.getMessage());
+                        addTestRunnerLog("Error occurred during communication with PractiTest server: " + e.getMessage());
                     } catch (SAXException e) {
                         trayIcon.setImage(trayIconImageError);
                         trayIcon.displayMessage(XBOT_TRAY_CAPTION, "PractiTest xBot failed to run task: " + e.getMessage(), TrayIcon.MessageType.ERROR);
                         logger.severe("Error occurred during communication with PractiTest server: " + e.getMessage());
+                        addTestRunnerLog("Error occurred during communication with PractiTest server: " + e.getMessage());
                     } catch (InterruptedException e) {
                         trayIcon.setImage(trayIconImageError);
                         trayIcon.displayMessage(XBOT_TRAY_CAPTION, "PractiTest xBot failed to run task: " + e.getMessage(), TrayIcon.MessageType.ERROR);
                         logger.severe("Error occurred during execution of task: " + e.getMessage());
+                        addTestRunnerLog("Error occurred during execution of task: " + e.getMessage());
                     } catch (Throwable e) {
                         trayIcon.setImage(trayIconImageError);
                         trayIcon.displayMessage(XBOT_TRAY_CAPTION, "PractiTest xBot failed to run task: " + e.getMessage(), TrayIcon.MessageType.ERROR);
                         logger.severe("Unhandled exception: " + e.getMessage());
+                        addTestRunnerLog("Unhandled exception: " + e.getMessage());
                     }
                 } else {
                     logger.warning("PractiTest client is not yet configured");
+                    addTestRunnerLog("PractiTest client is not yet configured");
                 }
                 logger.info("TestRunner finished, going to sleep.");
+                addTestRunnerLog("TestRunner finished, going to sleep.");
             }
         }, TEST_RUNNER_DELAY, TEST_RUNNER_DELAY, TimeUnit.SECONDS);
     }
@@ -370,5 +391,14 @@ public class Main {
                 testRunnerLog.removeLast();
             }
         }
+    }
+
+    private Image loadImage(String path) {
+        URL internalPath = getClass().getResource("/" + path);
+        if (internalPath == null) {
+            logger.warning("Failed to load resource [" + path + "], falling back to regular path");
+            return Toolkit.getDefaultToolkit().getImage(path);
+        }
+        return Toolkit.getDefaultToolkit().getImage(internalPath);
     }
 }

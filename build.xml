@@ -1,0 +1,69 @@
+<?xml version="1.0"?>
+<project name="xbot" default="test">
+    <property name="implementation.version" value="0.1" />
+
+    <property name="lib.dir" value="${basedir}/lib" />
+    <property name="build.dir" value="${basedir}/build" />
+    <property name="build.classes.dir" value="${build.dir}/classes" />
+    <property name="dist.dir" value="${build.dir}/dist" />
+
+    <path id="compile.path">
+        <fileset dir="${lib.dir}">
+            <include name="*.jar" />
+            <exclude name="*-javadoc.jar" />
+            <exclude name="*-sources.jar" />
+        </fileset>
+    </path>
+
+    <path id="src.path">
+        <dirset dir="${basedir}">
+            <include name="src" />
+            <!-- <include name="test" /> -->
+        </dirset>
+    </path>
+
+    <target name="compile">
+        <mkdir dir="${build.classes.dir}" />
+        <javac destdir="${build.classes.dir}" debug="true" encoding="utf8">
+            <classpath refid="compile.path" />
+            <src refid="src.path" />
+        </javac>
+        <copy todir="${build.classes.dir}/images">
+            <fileset dir="images" />
+        </copy>
+    </target>
+
+    <target name="test" depends="compile">
+    </target>
+
+    <target name="dist" depends="test">
+        <delete dir="${dist.dir}" />
+        <mkdir dir="${dist.dir}" />
+        <jar
+                destfile="${dist.dir}/${ant.project.name}.jar">
+            <manifest>
+                <attribute name="Built-By" value="${user.name}" />
+                <attribute name="Implementation-Version" value="${implementation.version}" />
+            </manifest>
+            <fileset dir="${build.classes.dir}">
+                <exclude name="**/Test*" />
+            </fileset>
+        </jar>
+        <copy todir="${dist.dir}">
+            <fileset dir="${lib.dir}">
+                <include name="*.jar" />
+                <exclude name="*-javadoc.jar" />
+                <exclude name="*-sources.jar" />
+            </fileset>
+        </copy>
+        <signjar
+                keystore="etc/keystore.PractiTest"
+                jar="${dist.dir}/${ant.project.name}.jar"
+                alias="practitest"
+                storepass="practitest">
+            <path>
+                <fileset dir="${dist.dir}" includes="*.jar" />
+            </path>
+        </signjar>
+    </target>
+</project>

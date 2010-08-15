@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- JNLP File for PractiTest XBot Application -->
+<jnlp
+    spec="6.0+"
+    codebase="http://localhost/~stask/"
+    href="xbot.jnlp">
+    <information>
+        <title>PractiTest XBot Application</title>
+        <vendor>PractiTest</vendor>
+        <homepage href="http://www.practitest.com"/>
+        <description>PractiTest XBot Application</description>
+        <description kind="short">Blah Blah</description>
+        <icon href="images/xbot.png" />
+        <icon kind="splash" href="images/xbot_splash.png" />
+        <offline-allowed />
+        <shortcut online="false">
+            <desktop />
+            <menu submenu="PractiTest Apps" />
+        </shortcut>
+    </information>
+    <security>
+        <all-permissions />
+    </security>
+    <resources>
+        <j2se version="1.6+" java-vm-args="-esa -Xnoclassgc" />
+        <jar href="lib/xbot.jar" />
+        <jar href="lib/commons-codec-1.2.jar" />
+        <jar href="lib/commons-httpclient-3.0.1.jar" />
+        <jar href="lib/commons-logging-api.jar" />
+        <jar href="lib/commons-logging.jar" />
+        <jar href="lib/jetty-6.1.23.jar" />
+        <jar href="lib/jetty-util-6.1.23.jar" />
+        <jar href="lib/servlet-api-2.5-20081211.jar" />
+    </resources>
+    <application-desc main-class="com.practitest.xbot.Main" />
+</jnlp>
