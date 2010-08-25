@@ -82,6 +82,7 @@ public class Main {
         exitCondition = lock.newCondition();
 
         initializeHTTPListener();
+        addTestRunnerLog("Loading with API Key: " + apiKey + " and serverURL: " + serverURL);
         initializeClient();
         initializeScheduler();
         if (!noTrayIcon) {
@@ -336,7 +337,7 @@ public class Main {
                                     }
                                 }));
                             }
-                            client.uploadResult(new Client.TaskResult(task.getId(), task.getProjectId(), exitCode, taskResultFiles));
+                            client.uploadResult(new Client.TaskResult(task.getInstanceId(), exitCode, taskResultFiles));
                             addTestRunnerLog("Finished uploading test results.");
                             trayIcon.setImage(trayIconImageReady);
                             trayIcon.displayMessage(XBOT_TRAY_CAPTION, "PractiTest xBot finished running task, ready for the next one", TrayIcon.MessageType.INFO);

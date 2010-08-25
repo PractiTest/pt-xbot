@@ -31,6 +31,7 @@ public class Client {
     private static final Logger logger = Logger.getLogger(Client.class.getName());
 
     private static final int DEFAULT_CONNECTION_TIMEOUT = 5000;
+    private static final int XBOT_VERSION = 1;
 
     private static final DocumentBuilderFactory documentFactory = DocumentBuilderFactory.newInstance();
 
@@ -65,8 +66,7 @@ public class Client {
 
     public void uploadResult(TaskResult result) throws IOException, NoSuchAlgorithmException {
         StringBuilder urlBuilder = constructURL("upload_test_result");
-        urlBuilder.append("&test_id=").append(result.getId());
-        urlBuilder.append("&project_id=").append(result.getProjectId());
+        urlBuilder.append("&instance_id=").append(result.getInstanceId());
         urlBuilder.append("&exitCode=").append(result.getExitCode());
         PostMethod postMethod = new PostMethod(urlBuilder.toString());
         if (result.getFiles() != null && !result.getFiles().isEmpty()) {
@@ -93,8 +93,7 @@ public class Client {
             // we're only taking first item
             Element taskElement = (Element) elements.item(0);
             task = new Task(
-                    taskElement.getAttribute("id"),
-                    taskElement.getAttribute("project-id"),
+                    taskElement.getAttribute("instance-id"),
                     taskElement.getAttribute("path-to-application"),
                     taskElement.getAttribute("path-to-results"));
         }
@@ -114,7 +113,8 @@ public class Client {
         long timestamp = new Date().getTime();
         return sb.append(serverURL).append("/automated_tests/").append(command).append(".xml?api_key=").
                 append(apiKey).append("&signature=").append(createSignature(timestamp)).
-                append("&ts=").append(timestamp);
+                append("&ts=").append(timestamp).
+                append("&xbot_version=").append(XBOT_VERSION);
     }
 
     private String createSignature(long timestamp) throws NoSuchAlgorithmException {
@@ -126,24 +126,18 @@ public class Client {
     }
 
     public static class Task {
-        private String id;
-        private String projectId;
+        private String instanceId;
         private String pathToTestApplication;
         private String pathToTestResults;
 
-        public Task(String id, String projectId, String pathToTestApplication, String pathToTestResults) {
-            this.id = id;
-            this.projectId = projectId;
+        public Task(String instanceId, String pathToTestApplication, String pathToTestResults) {
+            this.instanceId = instanceId;
             this.pathToTestApplication = pathToTestApplication;
             this.pathToTestResults = pathToTestResults;
         }
 
-        public String getId() {
-            return id;
-        }
-
-        public String getProjectId() {
-            return projectId;
+        public String getInstanceId() {
+            return instanceId;
         }
 
         public String getPathToTestApplication() {
@@ -156,24 +150,18 @@ public class Client {
     }
 
     public static class TaskResult {
-        private String id;
-        private String projectId;
+        private String instanceId;
         private int exitCode;
         private List<File> files;
 
-        public TaskResult(String id, String projectId, int exitCode, List<File> files) {
-            this.id = id;
-            this.projectId = projectId;
+        public TaskResult(String instanceId, int exitCode, List<File> files) {
+            this.instanceId = instanceId;
             this.exitCode = exitCode;
             this.files = files;
         }
 
-        public String getId() {
-            return id;
-        }
-
-        public String getProjectId() {
-            return projectId;
+        public String getInstanceId() {
+            return instanceId;
         }
 
         public int getExitCode() {
