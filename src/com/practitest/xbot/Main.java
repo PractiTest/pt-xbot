@@ -316,12 +316,14 @@ public class Main {
         testRunner = scheduler.scheduleWithFixedDelay(new Runnable() {
             public void run() {
                 logger.info("TestRunner is awake");
-                addTestRunnerLog("TestRunner is awake");
+                addTestRunnerLog("TestRunner is awake getting next test to run");
                 Client client = theClient.get();
                 if (client != null) {
                     try {
                         Client.Task task = client.nextTask();
-                        if (task != null) {
+                        if (task == null) 
+                          addTestRunnerLog("There is no test to run in the queue");
+                        else {
                             addTestRunnerLog("Running [" + task.getPathToTestApplication() + "]...");
                             trayIcon.setImage(trayIconImageRunning);
                             trayIcon.displayMessage(XBOT_TRAY_CAPTION, "PractiTest xBot is running task", TrayIcon.MessageType.INFO);
@@ -343,35 +345,19 @@ public class Main {
                             trayIcon.displayMessage(XBOT_TRAY_CAPTION, "PractiTest xBot finished running task, ready for the next one", TrayIcon.MessageType.INFO);
                         }
                     } catch (IOException e) {
-                        trayIcon.setImage(trayIconImageError);
-                        trayIcon.displayMessage(XBOT_TRAY_CAPTION, "PractiTest xBot failed to run task: " + e.getMessage(), TrayIcon.MessageType.ERROR);
-                        logger.severe("Error occurred during communication with PractiTest server: " + e.getMessage());
-                        addTestRunnerLog("Error occurred during communication with PractiTest server: " + e.getMessage());
+                        errorDisplay(e.getMessage(), null);
                     } catch (NoSuchAlgorithmException e) {
-                        trayIcon.setImage(trayIconImageError);
-                        trayIcon.displayMessage(XBOT_TRAY_CAPTION, "PractiTest xBot failed to run task: " + e.getMessage(), TrayIcon.MessageType.ERROR);
-                        logger.severe("Error occurred during communication with PractiTest server: " + e.getMessage());
-                        addTestRunnerLog("Error occurred during communication with PractiTest server: " + e.getMessage());
+                        errorDisplay(e.getMessage(), null);
                     } catch (ParserConfigurationException e) {
-                        trayIcon.setImage(trayIconImageError);
-                        trayIcon.displayMessage(XBOT_TRAY_CAPTION, "PractiTest xBot failed to run task: " + e.getMessage(), TrayIcon.MessageType.ERROR);
-                        logger.severe("Error occurred during communication with PractiTest server: " + e.getMessage());
-                        addTestRunnerLog("Error occurred during communication with PractiTest server: " + e.getMessage());
+                        errorDisplay(e.getMessage(), null);
                     } catch (SAXException e) {
-                        trayIcon.setImage(trayIconImageError);
-                        trayIcon.displayMessage(XBOT_TRAY_CAPTION, "PractiTest xBot failed to run task: " + e.getMessage(), TrayIcon.MessageType.ERROR);
-                        logger.severe("Error occurred during communication with PractiTest server: " + e.getMessage());
-                        addTestRunnerLog("Error occurred during communication with PractiTest server: " + e.getMessage());
+                        errorDisplay(e.getMessage(), null);
                     } catch (InterruptedException e) {
-                        trayIcon.setImage(trayIconImageError);
-                        trayIcon.displayMessage(XBOT_TRAY_CAPTION, "PractiTest xBot failed to run task: " + e.getMessage(), TrayIcon.MessageType.ERROR);
-                        logger.severe("Error occurred during execution of task: " + e.getMessage());
-                        addTestRunnerLog("Error occurred during execution of task: " + e.getMessage());
+                        errorDisplay(e.getMessage(), "Error occurred during execution of task: ");
+                      } catch (Client.APIException e) {
+                        errorDisplay(e.getMessage(), "APIException: ");
                     } catch (Throwable e) {
-                        trayIcon.setImage(trayIconImageError);
-                        trayIcon.displayMessage(XBOT_TRAY_CAPTION, "PractiTest xBot failed to run task: " + e.getMessage(), TrayIcon.MessageType.ERROR);
-                        logger.severe("Unhandled exception: " + e.getMessage());
-                        addTestRunnerLog("Unhandled exception: " + e.getMessage());
+                        errorDisplay(e.getMessage(), "Unhandled exception: ");
                     }
                 } else {
                     logger.warning("PractiTest client is not yet configured");
@@ -381,6 +367,16 @@ public class Main {
                 addTestRunnerLog("TestRunner finished, going to sleep.");
             }
         }, TEST_RUNNER_DELAY, TEST_RUNNER_DELAY, TimeUnit.SECONDS);
+    }
+    
+    private void errorDisplay(String message, String error_prefix){
+        trayIcon.setImage(trayIconImageError);
+        trayIcon.displayMessage(XBOT_TRAY_CAPTION, "PractiTest xBot failed to run task: " + message, TrayIcon.MessageType.ERROR);
+        // the default is the communication error
+        if (error_prefix == null)
+            error_prefix = "Error occurred during communication with PractiTest server: ";
+        logger.severe(error_prefix + message);
+        addTestRunnerLog(error_prefix + message);
     }
 
     private void addTestRunnerLog(String message) {

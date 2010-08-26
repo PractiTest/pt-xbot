@@ -2,6 +2,7 @@ package com.practitest.api;
 
 import org.apache.commons.httpclient.HttpClient;
 import org.apache.commons.httpclient.HttpStatus;
+import org.apache.commons.httpclient.HttpMethodBase;
 import org.apache.commons.httpclient.methods.GetMethod;
 import org.apache.commons.httpclient.methods.PostMethod;
 import org.apache.commons.httpclient.methods.multipart.FilePart;
@@ -47,24 +48,26 @@ public class Client {
         this.apiSecretKey = apiSecretKey;
     }
 
-    public Task nextTask() throws IOException, NoSuchAlgorithmException, ParserConfigurationException, SAXException {
+    public Task nextTask() throws IOException, NoSuchAlgorithmException, ParserConfigurationException, SAXException, APIException, Exception {
         String url = constructURL("next_test").toString();
         Document taskDocument = null;
         GetMethod getMethod = new GetMethod(url);
         try {
-            if (getHTTPClient().executeMethod(getMethod) != HttpStatus.SC_OK) {
-                logger.severe("Remote call failed: " + getMethod.getStatusLine().toString());
-            } else {
+            int http_result = getHTTPClient().executeMethod(getMethod);
+            if (http_result == HttpStatus.SC_OK) {
                 logger.info(getMethod.getResponseBodyAsString());
                 taskDocument = documentFactory.newDocumentBuilder().parse(getMethod.getResponseBodyAsStream());
-            }
+            } else if (http_result == HttpStatus.SC_INTERNAL_SERVER_ERROR )
+                generateApiException(getMethod);
+            else
+                logger.severe("Remote call failed: " + getMethod.getStatusLine().toString());
         } finally {
             getMethod.releaseConnection();
         }
         return parseTaskDocument(taskDocument);
     }
 
-    public void uploadResult(TaskResult result) throws IOException, NoSuchAlgorithmException {
+    public void uploadResult(TaskResult result) throws IOException, NoSuchAlgorithmException, Exception {
         StringBuilder urlBuilder = constructURL("upload_test_result");
         urlBuilder.append("&instance_id=").append(result.getInstanceId());
         urlBuilder.append("&exitCode=").append(result.getExitCode());
@@ -78,7 +81,10 @@ public class Client {
             postMethod.setRequestEntity(new MultipartRequestEntity(parts, postMethod.getParams()));
         }
         try {
-            if (getHTTPClient().executeMethod(postMethod) != HttpStatus.SC_OK) {
+            int http_result = getHTTPClient().executeMethod(postMethod);
+            if (http_result == HttpStatus.SC_INTERNAL_SERVER_ERROR )
+              generateApiException(postMethod);
+            else if (http_result != HttpStatus.SC_OK) {
                 logger.severe("Remote call failed: " + postMethod.getStatusLine().toString());
             }
         } finally {
@@ -88,16 +94,24 @@ public class Client {
 
     private Task parseTaskDocument(Document taskDocument) {
         Task task = null;
-        NodeList elements = taskDocument.getElementsByTagName("task");
+        NodeList elements = taskDocument.getElementsByTagName("instance");
         if (elements.getLength() > 0) {
             // we're only taking first item
             Element taskElement = (Element) elements.item(0);
             task = new Task(
-                    taskElement.getAttribute("instance-id"),
+                    taskElement.getAttribute("id"),
                     taskElement.getAttribute("path-to-application"),
                     taskElement.getAttribute("path-to-results"));
         }
         return task;
+    }
+
+    private void generateApiException(HttpMethodBase mm) throws Exception {
+        NodeList error_elmnts = documentFactory.newDocumentBuilder().parse(mm.getResponseBodyAsStream()).getElementsByTagName("error");
+        if (error_elmnts.getLength() > 0)
+            throw new APIException(((Element) error_elmnts.item(0)).getTextContent());
+        else
+            throw new Exception("Remote call Failed Error #" + HttpStatus.SC_INTERNAL_SERVER_ERROR + ":" + mm.getResponseBodyAsString());
     }
 
     private synchronized HttpClient getHTTPClient() {
@@ -149,6 +163,12 @@ public class Client {
         }
     }
 
+    public class APIException extends Exception{
+        public APIException(String s) {
+            super(s);
+        }
+    }
+    
     public static class TaskResult {
         private String instanceId;
         private int exitCode;
