@@ -28,6 +28,7 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.Deque;
 import java.util.LinkedList;
+import java.util.Comparator;
 import java.util.Properties;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
@@ -54,6 +55,7 @@ public class Main {
 
     private static final int DEFAULT_LISTENING_PORT = 18080;
     private static final int TEST_RUNNER_DELAY = 60;
+    private static final int TEST_RUNNER_INITIAL_DELAY = 3;
     private static final int MAX_TEST_RUNNER_LOG = 10;
 
     private Image trayIconImageReady;
@@ -72,6 +74,7 @@ public class Main {
     private String apiKey = "";
     private String apiSecretKey = "";
     private String serverURL = "";
+    private String clientId = "";
 
     public Main(int listeningPort, boolean noTrayIcon) throws Exception {
         loadSettings();
@@ -148,6 +151,7 @@ public class Main {
                 serverURL = settings.getProperty("server_url");
                 apiKey = settings.getProperty("api_key");
                 apiSecretKey = settings.getProperty("api_secret_key");
+                clientId = settings.getProperty("client_id");
             } catch (IOException ignore) {
             }
         }
@@ -159,6 +163,7 @@ public class Main {
         settings.setProperty("server_url", serverURL);
         settings.setProperty("api_key", apiKey);
         settings.setProperty("api_secret_key", apiSecretKey);
+        settings.setProperty("client_id", clientId);
         try {
             settings.store(new FileWriter(new File(System.getProperty("user.dir"), "xbot.properties")),
                            "Please do not change this file manually, it'll be re-written by the application anyway.");
@@ -189,19 +194,26 @@ public class Main {
                     out.println("<caption>PractiTest xBot configuration</caption>");
                     out.println("<tr>");
                     out.println("<th style=\"text-align:right; width:30%;\"><label for=\"server_url\">PractiTest URL:</label></th>");
-                    out.println("<td style=\"text-align:left; width:70%;\"><input type=\"text\" id=\"server_url\" name=\"server_url\" value=\"\" + serverURL + \"\" /></td>");
+                    out.println("<td style=\"text-align:left; width:70%;\"><input type=\"text\" id=\"server_url\" name=\"server_url\" value=\"" + serverURL + "\" /></td>");
                     out.println("</tr>");
                     out.println("<tr>");
                     out.println("<th style=\"text-align:right; width:30%;\"><label for=\"api_key\">API Key:</label></th>");
-                    out.println("<td style=\"text-align:left; width:70%;\"><input type=\"text\" id=\"api_key\" name=\"api_key\" value=\"\" + apiKey + \"\" /></td>");
+                    out.println("<td style=\"text-align:left; width:70%;\"><input type=\"text\" id=\"api_key\" name=\"api_key\" value=\"" + apiKey + "\" /></td>");
                     out.println("</tr>");
                     out.println("<tr>");
                     out.println("<th style=\"text-align:right; width:30%;\"><label for=\"api_secret_key\">API Secret Key:</label></th>");
-                    out.println("<td style=\"text-align:left; width:70%;\"><input type=\"text\" id=\"api_secret_key\" name=\"api_secret_key\" value=\"\" + apiSecretKey + \"\" /></td>");
+                    out.println("<td style=\"text-align:left; width:70%;\"><input type=\"text\" id=\"api_secret_key\" name=\"api_secret_key\" value=\"" + apiSecretKey + "\" /></td>");
                     out.println("</tr>");
+
                     out.println("<tr>");
-                    out.println("<td colspan=\"2\"><input type=\"submit\" value=\"Update &rArr;\" /></td>");
+                    out.println("<th style=\"text-align:right; width:30%;\"><label for=\"client_id\">Client ID:</label></th>");
+                    out.println("<td style=\"text-align:left; width:70%;\"><input type=\"text\" id=\"client_id\" name=\"client_id\" value=\"" + clientId + "\" /></td>");
                     out.println("</tr>");
+                    
+                    out.println("<tr>  <td colspan=\"2\">");
+                    out.println("<a href=\"/log\">View Log</a> &nbsp; &nbsp;");
+                    out.println("<input type=\"submit\" value=\"Update &rArr;\" />");
+                    out.println("</td>  </tr>");
                     out.println("</table>");
                     out.println("</form></body></html>");
                     ((Request) request).setHandled(true);
@@ -209,6 +221,7 @@ public class Main {
                     serverURL = request.getParameter("server_url");
                     apiKey = request.getParameter("api_key");
                     apiSecretKey = request.getParameter("api_secret_key");
+                    clientId = request.getParameter("client_id");
                     saveSettings();
                     initializeClient();
                     response.sendRedirect("/preferences");
@@ -303,8 +316,8 @@ public class Main {
 
     private void initializeClient() {
         theClient.set(null);
-        if (serverURL.isEmpty() || apiKey.isEmpty() || apiSecretKey.isEmpty()) return;
-        theClient.set(new Client(serverURL, apiKey, apiSecretKey));
+        if (serverURL.isEmpty() || apiKey.isEmpty() || apiSecretKey.isEmpty() || clientId.isEmpty()) return;
+        theClient.set(new Client(serverURL, apiKey, apiSecretKey, clientId));
         if (trayIcon != null) {
             trayIcon.setImage(trayIconImageReady);
             trayIcon.displayMessage(XBOT_TRAY_CAPTION, "PractiTest xBot is ready", TrayIcon.MessageType.INFO);
@@ -321,23 +334,31 @@ public class Main {
                 if (client != null) {
                     try {
                         Client.Task task = client.nextTask();
-                        if (task == null) 
+                        if (task == null) {
                           addTestRunnerLog("There is no test to run in the queue");
-                        else {
-                            addTestRunnerLog("Running [" + task.getPathToTestApplication() + "]...");
+                          trayIcon.setImage(trayIconImageReady);
+                        } else {
+                            String taskName = task.getDescription() + " [" + task.getPathToTestApplication() + "]";
+                            addTestRunnerLog("Running " + taskName);
                             trayIcon.setImage(trayIconImageRunning);
-                            trayIcon.displayMessage(XBOT_TRAY_CAPTION, "PractiTest xBot is running task", TrayIcon.MessageType.INFO);
+                            trayIcon.displayMessage(XBOT_TRAY_CAPTION, "PractiTest xBot is running: " + taskName, TrayIcon.MessageType.INFO);
                             Process childProcess = Runtime.getRuntime().exec(task.getPathToTestApplication());
                             int exitCode = childProcess.waitFor();
-                            addTestRunnerLog("Finished [" + task.getPathToTestApplication() + "] with exit code " + exitCode + ", uploading test results...");
+                            addTestRunnerLog("Finished " + taskName + " with exit code " + exitCode + ", uploading test results...");
+                            
                             java.util.List<File> taskResultFiles = null;
                             File taskResultFilesDir = new File(task.getPathToTestResults());
                             if (taskResultFilesDir.isDirectory()) {
-                                taskResultFiles = Arrays.asList(taskResultFilesDir.listFiles(new FileFilter() {
-                                    public boolean accept(File file) {
-                                        return file.isFile();
-                                    }
-                                }));
+                                File[] files = taskResultFilesDir.listFiles(new FileFilter() {
+                                    public boolean accept(File file) { return file.isFile();} });
+                                Arrays.sort(files, new Comparator<File>(){
+                                    public int compare(File f1, File f2)
+                                        { return Long.valueOf(f1.lastModified()).compareTo(f2.lastModified());} 
+                                });
+                                int num_of_files = task.getnumOfFilesToUpload();
+                                taskResultFiles = (files.length > num_of_files) ? 
+                                    Arrays.asList(files).subList(0, num_of_files): 
+                                    Arrays.asList(files);
                             }
                             client.uploadResult(new Client.TaskResult(task.getInstanceId(), exitCode, taskResultFiles));
                             addTestRunnerLog("Finished uploading test results.");
@@ -366,7 +387,7 @@ public class Main {
                 logger.info("TestRunner finished, going to sleep.");
                 addTestRunnerLog("TestRunner finished, going to sleep.");
             }
-        }, TEST_RUNNER_DELAY, TEST_RUNNER_DELAY, TimeUnit.SECONDS);
+        }, TEST_RUNNER_INITIAL_DELAY, TEST_RUNNER_DELAY, TimeUnit.SECONDS);
     }
     
     private void errorDisplay(String message, String error_prefix){

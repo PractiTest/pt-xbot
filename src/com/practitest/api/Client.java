@@ -39,13 +39,15 @@ public class Client {
     private String serverURL;
     private String apiKey;
     private String apiSecretKey;
+    private String clientId;
 
     private HttpClient httpClient;
 
-    public Client(String serverURL, String apiKey, String apiSecretKey) {
+    public Client(String serverURL, String apiKey, String apiSecretKey, String clientId) {
         this.serverURL = serverURL;
         this.apiKey = apiKey;
         this.apiSecretKey = apiSecretKey;
+        this.clientId = clientId;
     }
 
     public Task nextTask() throws IOException, NoSuchAlgorithmException, ParserConfigurationException, SAXException, APIException, Exception {
@@ -70,7 +72,7 @@ public class Client {
     public void uploadResult(TaskResult result) throws IOException, NoSuchAlgorithmException, Exception {
         StringBuilder urlBuilder = constructURL("upload_test_result");
         urlBuilder.append("&instance_id=").append(result.getInstanceId());
-        urlBuilder.append("&exitCode=").append(result.getExitCode());
+        urlBuilder.append("&exit_code=").append(result.getExitCode());
         PostMethod postMethod = new PostMethod(urlBuilder.toString());
         if (result.getFiles() != null && !result.getFiles().isEmpty()) {
             Part[] parts = new FilePart[result.getFiles().size()];
@@ -100,8 +102,10 @@ public class Client {
             Element taskElement = (Element) elements.item(0);
             task = new Task(
                     taskElement.getAttribute("id"),
-                    taskElement.getAttribute("path-to-application"),
-                    taskElement.getAttribute("path-to-results"));
+                    getInsideText(taskElement, "description"),
+                    getInsideText(taskElement, "path-to-application"),
+                    getInsideText(taskElement, "path-to-results"),
+                    Integer.parseInt(taskElement.getAttribute("num_of_files_to_upload")));
         }
         return task;
     }
@@ -113,6 +117,10 @@ public class Client {
         else
             throw new Exception("Remote call Failed Error #" + HttpStatus.SC_INTERNAL_SERVER_ERROR + ":" + mm.getResponseBodyAsString());
     }
+    
+    private String getInsideText(Element e, String tagName) {
+		return ((Element)(e.getElementsByTagName(tagName)).item(0)).getTextContent();
+	}
 
     private synchronized HttpClient getHTTPClient() {
         if (httpClient == null) {
@@ -127,7 +135,7 @@ public class Client {
         long timestamp = new Date().getTime();
         return sb.append(serverURL).append("/automated_tests/").append(command).append(".xml?api_key=").
                 append(apiKey).append("&signature=").append(createSignature(timestamp)).
-                append("&ts=").append(timestamp).
+                append("&ts=").append(timestamp).append("&client_id=").append(clientId).
                 append("&xbot_version=").append(XBOT_VERSION);
     }
 
@@ -141,13 +149,17 @@ public class Client {
 
     public static class Task {
         private String instanceId;
+        private String description;
         private String pathToTestApplication;
         private String pathToTestResults;
+        private int numOfFilesToUpload;
 
-        public Task(String instanceId, String pathToTestApplication, String pathToTestResults) {
+        public Task(String instanceId, String description, String pathToTestApplication, String pathToTestResults, int numOfFilesToUpload) {
             this.instanceId = instanceId;
+            this.description = description;
             this.pathToTestApplication = pathToTestApplication;
             this.pathToTestResults = pathToTestResults;
+            this.numOfFilesToUpload = numOfFilesToUpload;
         }
 
         public String getInstanceId() {
@@ -160,6 +172,14 @@ public class Client {
 
         public String getPathToTestResults() {
             return pathToTestResults;
+        }
+
+        public int getnumOfFilesToUpload() {
+            return numOfFilesToUpload;
+        }
+        
+        public String getDescription() {
+            return description;
         }
     }
 
