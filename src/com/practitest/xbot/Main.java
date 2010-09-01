@@ -359,7 +359,8 @@ public class Main {
                                 taskResultFiles = (files.length > num_of_files) ? 
                                     Arrays.asList(files).subList(0, num_of_files): 
                                     Arrays.asList(files);
-                            }
+                            } else
+                              taskResultFiles = Arrays.asList(taskResultFilesDir);
                             client.uploadResult(new Client.TaskResult(task.getInstanceId(), exitCode, taskResultFiles));
                             addTestRunnerLog("Finished uploading test results.");
                             trayIcon.setImage(trayIconImageReady);
