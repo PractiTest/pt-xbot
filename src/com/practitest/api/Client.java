@@ -44,7 +44,10 @@ public class Client {
     private HttpClient httpClient;
 
     public Client(String serverURL, String apiKey, String apiSecretKey, String clientId) {
-        this.serverURL = serverURL;
+        if (serverURL.endsWith("/") || serverURL.endsWith("\\"))
+            this.serverURL = serverURL.substring(0, serverURL.length() - 1);
+        else
+            this.serverURL = serverURL;
         this.apiKey = apiKey;
         this.apiSecretKey = apiSecretKey;
         this.clientId = clientId;

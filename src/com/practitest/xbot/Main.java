@@ -344,7 +344,7 @@ public class Main {
                             trayIcon.displayMessage(XBOT_TRAY_CAPTION, "PractiTest xBot is running: " + taskName, TrayIcon.MessageType.INFO);
                             Process childProcess = Runtime.getRuntime().exec(task.getPathToTestApplication());
                             int exitCode = childProcess.waitFor();
-                            addTestRunnerLog("Finished " + taskName + " with exit code " + exitCode + ", uploading test results...");
+                            addTestRunnerLog("Finished " + taskName + " with exit code " + exitCode);
                             
                             java.util.List<File> taskResultFiles = null;
                             File taskResultFilesDir = new File(task.getPathToTestResults());
@@ -359,8 +359,13 @@ public class Main {
                                 taskResultFiles = (files.length > num_of_files) ? 
                                     Arrays.asList(files).subList(0, num_of_files): 
                                     Arrays.asList(files);
-                            } else
-                              taskResultFiles = Arrays.asList(taskResultFilesDir);
+                                addTestRunnerLog("uploading test results files...");
+                            } else if (taskResultFilesDir.isFile()){
+                                taskResultFiles = Arrays.asList(taskResultFilesDir);
+                                addTestRunnerLog("uploading test results file...");
+                            }else
+                                taskResultFiles = null;
+                            
                             client.uploadResult(new Client.TaskResult(task.getInstanceId(), exitCode, taskResultFiles));
                             addTestRunnerLog("Finished uploading test results.");
                             trayIcon.setImage(trayIconImageReady);
