@@ -25,10 +25,11 @@ import java.net.URL;
 import java.security.NoSuchAlgorithmException;
 import java.text.DateFormat;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.Deque;
 import java.util.LinkedList;
-import java.util.Comparator;
+import java.util.List;
 import java.util.Properties;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -150,10 +151,10 @@ public class Main {
             try {
                 Properties settings = new Properties();
                 settings.load(new FileReader(settingsFile));
-                serverURL = settings.getProperty("server_url");
-                apiKey = settings.getProperty("api_key");
-                apiSecretKey = settings.getProperty("api_secret_key");
-                clientId = settings.getProperty("client_id");
+                serverURL = settings.getProperty("server_url", "");
+                apiKey = settings.getProperty("api_key", "");
+                apiSecretKey = settings.getProperty("api_secret_key", "");
+                clientId = settings.getProperty("client_id", "");
             } catch (IOException ignore) {
             }
         }
@@ -211,7 +212,7 @@ public class Main {
                     out.println("<th style=\"text-align:right; width:30%;\"><label for=\"client_id\">Client ID:</label></th>");
                     out.println("<td style=\"text-align:left; width:70%;\"><input type=\"text\" id=\"client_id\" name=\"client_id\" value=\"" + clientId + "\" /></td>");
                     out.println("</tr>");
-                    
+
                     out.println("<tr>  <td colspan=\"2\">");
                     out.println("<a href=\"/log\">View Log</a> &nbsp; &nbsp;");
                     out.println("<!-- build=1.01 -->");
@@ -334,7 +335,7 @@ public class Main {
                 logger.info("TestRunner is awake");
                 addTestRunnerLog("TestRunner is awake getting next test to run");
                 Client client = theClient.get();
-                if (client != null) 
+                if (client != null)
                     runScript(client);
                 else { // client is null
                     logger.warning("PractiTest client is not yet configured");
@@ -345,50 +346,30 @@ public class Main {
             }
         }, TEST_RUNNER_INITIAL_DELAY, TEST_RUNNER_DELAY, TimeUnit.SECONDS);
     }
+
     private void runScript(Client client) {
-        Timer timer = null;
-        Process childProcess = null;
         try {
             Client.Task task = client.nextTask();
             if (task == null) {
                 addTestRunnerLog("There is no test to run in the queue");
                 trayIcon.setImage(trayIconImageReady);
                 return;
-            } 
+            }
             String taskName = task.getDescription() + " [" + task.getPathToTestApplication() + "]";
             addTestRunnerLog("Running " + taskName);
             trayIcon.setImage(trayIconImageRunning);
             trayIcon.displayMessage(XBOT_TRAY_CAPTION, "PractiTest xBot is running: " + taskName, TrayIcon.MessageType.INFO);
-            
-            timer = new Timer(true);
-            InterruptTimerTask interrupter = new InterruptTimerTask(Thread.currentThread());
-            timer.schedule(interrupter, 30 /*seconds*/ * 1000 /*milliseconds per second*/);
-            childProcess = Runtime.getRuntime().exec(task.getPathToTestApplication());
-            int exitCode = childProcess.waitFor();
-            
-            addTestRunnerLog("Finished " + taskName + " with exit code " + exitCode);
-            
-            java.util.List<File> taskResultFiles = null;
-            File taskResultFilesDir = new File(task.getPathToTestResults());
-            if (taskResultFilesDir.isDirectory()) {
-              File[] files = taskResultFilesDir.listFiles(new FileFilter() {
-                    public boolean accept(File file) { return file.isFile();} });
-                    Arrays.sort(files, new Comparator<File>(){
-                      public int compare(File f1, File f2)
-                        { return Long.valueOf(f1.lastModified()).compareTo(f2.lastModified());} 
-                });
-                int num_of_files = task.getnumOfFilesToUpload();
-                taskResultFiles = (files.length > num_of_files) ? 
-                    Arrays.asList(files).subList(0, num_of_files): 
-                    Arrays.asList(files);
-                addTestRunnerLog("uploading test results files...");
-            } else if (taskResultFilesDir.isFile()){
-                taskResultFiles = Arrays.asList(taskResultFilesDir);
-                addTestRunnerLog("uploading test results file...");
-            }else
-                taskResultFiles = null;
-                
-            client.uploadResult(new Client.TaskResult(task.getInstanceId(), exitCode, taskResultFiles));
+
+            TaskRunner taskRunner = new TaskRunner(task, 30); // currently, the timeout is 30 seconds. should be part of task
+            Thread taskRunnerThread = new Thread(taskRunner);
+            taskRunnerThread.start();
+            taskRunnerThread.join();
+            if (taskRunner.isTimedOut())
+                addTestRunnerLog("Task [" + taskName + "] timed out");
+            else
+                addTestRunnerLog("Task [" + taskName + "] finished with exit code " + taskRunner.getExitCode());
+            addTestRunnerLog("Uploading test results...");
+            client.uploadResult(new Client.TaskResult(task.getInstanceId(), taskRunner.getExitCode(), taskRunner.getResultFiles()));
             addTestRunnerLog("Finished uploading test results.");
             trayIcon.setImage(trayIconImageReady);
             trayIcon.displayMessage(XBOT_TRAY_CAPTION, "PractiTest xBot finished running task, ready for the next one", TrayIcon.MessageType.INFO);
@@ -400,23 +381,14 @@ public class Main {
             errorDisplay(e.getMessage(), null);
         } catch (SAXException e) {
             errorDisplay(e.getMessage(), null);
-        } catch (InterruptedException e) {
-            errorDisplay(e.getMessage(), "Error occurred during execution of task: ");
-            childProcess.destroy();
-            //client.uploadResult(new Client.TaskResult(task.getInstanceId(), -1, ""));
         } catch (Client.APIException e) {
             errorDisplay(e.getMessage(), "APIException: ");
         } catch (Throwable e) {
             errorDisplay(e.getMessage(), "Unhandled exception: ");
-        } finally {
-            timer.cancel();     // If the process returns within the timeout period, we have to stop the interrupter
-                            // so that it does not unexpectedly interrupt some other code later.
-            Thread.interrupted();   // We need to clear the interrupt flag on the current thread just in case
-              // interrupter executed after waitFor had already returned but before timer.cancel
-              // took effect.
         }
     }
-    private void errorDisplay(String message, String error_prefix){
+
+    private void errorDisplay(String message, String error_prefix) {
         trayIcon.setImage(trayIconImageError);
         trayIcon.displayMessage(XBOT_TRAY_CAPTION, "PractiTest xBot failed to run task: " + message, TrayIcon.MessageType.ERROR);
         // the default is the communication error
@@ -445,25 +417,99 @@ public class Main {
         }
         return Toolkit.getDefaultToolkit().getImage(internalPath);
     }
-}
 
-/**
- * Just a simple TimerTask that interrupts the specified thread when run.
- */
-class InterruptTimerTask
-        extends TimerTask
-{
+    /**
+     * This class runs external process with given timeout.
+     * The code is based on this article: http://kylecartmell.com/?p=9
+     */
+    static class TaskRunner implements Runnable {
+        private Client.Task task;
+        private int timeout;
 
-    private Thread thread;
+        private boolean timedOut = false;
+        private int exitCode = -1;
+        private java.util.List<File> resultFiles;
 
-    public InterruptTimerTask(Thread t)
-    {
-        this.thread = t;
+        public TaskRunner(Client.Task task, int timeout) {
+            this.task = task;
+            this.timeout = timeout;
+        }
+
+        public boolean isTimedOut() {
+            return timedOut;
+        }
+
+        public int getExitCode() {
+            return exitCode;
+        }
+
+        public List<File> getResultFiles() {
+            return resultFiles;
+        }
+
+        public void run() {
+            Timer timer = null;
+            Process process = null;
+            boolean uploadResults = false;
+            try {
+                timer = new Timer(true);
+                Interrupter interrupter = new Interrupter(Thread.currentThread());
+                timer.schedule(interrupter, timeout * 1000);
+                process = Runtime.getRuntime().exec(task.getPathToTestApplication());
+                exitCode = process.waitFor();
+                uploadResults = true;
+            } catch (InterruptedException e) {
+                // timeout expired
+                timedOut = true;
+                process.destroy();
+            } catch (IOException e) {
+                // some other error
+            } finally {
+                // If the process returns within the timeout period, we have to stop the interrupter
+                // so that it does not unexpectedly interrupt some other code later.
+                if (timer != null) timer.cancel();
+
+                // We need to clear the interrupt flag on the current thread just in case
+                // interrupter executed after waitFor had already returned but before timer.cancel
+                // took effect.
+                //
+                // Oh, and there's also Sun bug 6420270 to worry about here.
+                Thread.interrupted();
+            }
+
+            if (uploadResults) {
+                File taskResultFilesDir = new File(task.getPathToTestResults());
+                if (taskResultFilesDir.isDirectory()) {
+                    File[] files = taskResultFilesDir.listFiles(new FileFilter() {
+                        public boolean accept(File file) {
+                            return file.isFile();
+                        }
+                    });
+                    Arrays.sort(files, new Comparator<File>() {
+                        public int compare(File left, File right) {
+                            return Long.valueOf(left.lastModified()).compareTo(right.lastModified());
+                        }
+                    });
+                    resultFiles = files.length > task.getNumOfFilesToUpload() ?
+                                  Arrays.asList(files).subList(0, task.getNumOfFilesToUpload()) :
+                                  Arrays.asList(files);
+                } else if (taskResultFilesDir.isFile()) {
+                    resultFiles = Arrays.asList(taskResultFilesDir);
+                }
+            }
+        }
+
+        private class Interrupter extends TimerTask {
+            private Thread thread;
+
+            public Interrupter(Thread thread) {
+                this.thread = thread;
+            }
+
+            @Override
+            public void run() {
+                thread.interrupt();
+            }
+        }
     }
-
-    public void run()
-    {
-        thread.interrupt();
-    }
-
 }

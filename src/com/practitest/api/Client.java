@@ -1,8 +1,8 @@
 package com.practitest.api;
 
 import org.apache.commons.httpclient.HttpClient;
-import org.apache.commons.httpclient.HttpStatus;
 import org.apache.commons.httpclient.HttpMethodBase;
+import org.apache.commons.httpclient.HttpStatus;
 import org.apache.commons.httpclient.methods.GetMethod;
 import org.apache.commons.httpclient.methods.PostMethod;
 import org.apache.commons.httpclient.methods.multipart.FilePart;
@@ -11,12 +11,9 @@ import org.apache.commons.httpclient.methods.multipart.Part;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
-import org.xml.sax.SAXException;
 
 import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.parsers.ParserConfigurationException;
 import java.io.File;
-import java.io.IOException;
 import java.math.BigInteger;
 import java.net.MalformedURLException;
 import java.security.MessageDigest;
@@ -53,7 +50,7 @@ public class Client {
         this.clientId = clientId;
     }
 
-    public Task nextTask() throws IOException, NoSuchAlgorithmException, ParserConfigurationException, SAXException, APIException, Exception {
+    public Task nextTask() throws Exception {
         String url = constructURL("next_test").toString();
         Document taskDocument = null;
         GetMethod getMethod = new GetMethod(url);
@@ -62,7 +59,7 @@ public class Client {
             if (http_result == HttpStatus.SC_OK) {
                 logger.info(getMethod.getResponseBodyAsString());
                 taskDocument = documentFactory.newDocumentBuilder().parse(getMethod.getResponseBodyAsStream());
-            } else if (http_result == HttpStatus.SC_INTERNAL_SERVER_ERROR )
+            } else if (http_result == HttpStatus.SC_INTERNAL_SERVER_ERROR)
                 generateApiException(getMethod);
             else
                 logger.severe("Remote call failed: " + getMethod.getStatusLine().toString());
@@ -72,7 +69,7 @@ public class Client {
         return parseTaskDocument(taskDocument);
     }
 
-    public void uploadResult(TaskResult result) throws IOException, NoSuchAlgorithmException, Exception {
+    public void uploadResult(TaskResult result) throws Exception {
         StringBuilder urlBuilder = constructURL("upload_test_result");
         urlBuilder.append("&instance_id=").append(result.getInstanceId());
         urlBuilder.append("&exit_code=").append(result.getExitCode());
@@ -87,8 +84,8 @@ public class Client {
         }
         try {
             int http_result = getHTTPClient().executeMethod(postMethod);
-            if (http_result == HttpStatus.SC_INTERNAL_SERVER_ERROR )
-              generateApiException(postMethod);
+            if (http_result == HttpStatus.SC_INTERNAL_SERVER_ERROR)
+                generateApiException(postMethod);
             else if (http_result != HttpStatus.SC_OK) {
                 logger.severe("Remote call failed: " + postMethod.getStatusLine().toString());
             }
@@ -116,14 +113,14 @@ public class Client {
     private void generateApiException(HttpMethodBase mm) throws Exception {
         NodeList error_elmnts = documentFactory.newDocumentBuilder().parse(mm.getResponseBodyAsStream()).getElementsByTagName("error");
         if (error_elmnts.getLength() > 0)
-            throw new APIException(((Element) error_elmnts.item(0)).getTextContent());
+            throw new APIException(error_elmnts.item(0).getTextContent());
         else
             throw new Exception("Remote call Failed Error #" + HttpStatus.SC_INTERNAL_SERVER_ERROR + ":" + mm.getResponseBodyAsString());
     }
-    
+
     private String getInsideText(Element e, String tagName) {
-		return ((Element)(e.getElementsByTagName(tagName)).item(0)).getTextContent();
-	}
+        return e.getElementsByTagName(tagName).item(0).getTextContent();
+    }
 
     private synchronized HttpClient getHTTPClient() {
         if (httpClient == null) {
@@ -177,21 +174,21 @@ public class Client {
             return pathToTestResults;
         }
 
-        public int getnumOfFilesToUpload() {
+        public int getNumOfFilesToUpload() {
             return numOfFilesToUpload;
         }
-        
+
         public String getDescription() {
             return description;
         }
     }
 
-    public class APIException extends Exception{
+    public class APIException extends Exception {
         public APIException(String s) {
             super(s);
         }
     }
-    
+
     public static class TaskResult {
         private String instanceId;
         private int exitCode;
