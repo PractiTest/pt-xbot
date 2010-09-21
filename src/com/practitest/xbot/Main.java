@@ -501,7 +501,7 @@ public class Main {
             }
         }
 
-        private class Interrupter extends TimerTask {
+        private static class Interrupter extends TimerTask {
             private Thread thread;
 
             public Interrupter(Thread thread) {
