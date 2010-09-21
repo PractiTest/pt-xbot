@@ -421,6 +421,8 @@ public class Main {
     /**
      * This class runs external process with given timeout.
      * The code is based on this article: http://kylecartmell.com/?p=9
+     *
+     * TODO: read stdout/stderr of the spawned process.
      */
     static class TaskRunner implements Runnable {
         private Client.Task task;
@@ -450,14 +452,14 @@ public class Main {
         public void run() {
             Timer timer = null;
             Process process = null;
-            boolean uploadResults = false;
+            boolean captureFiles = false;
             try {
                 timer = new Timer(true);
                 Interrupter interrupter = new Interrupter(Thread.currentThread());
                 timer.schedule(interrupter, timeout * 1000);
                 process = Runtime.getRuntime().exec(task.getPathToTestApplication());
                 exitCode = process.waitFor();
-                uploadResults = true;
+                captureFiles = true;
             } catch (InterruptedException e) {
                 // timeout expired
                 timedOut = true;
@@ -477,7 +479,7 @@ public class Main {
                 Thread.interrupted();
             }
 
-            if (uploadResults) {
+            if (captureFiles) {
                 File taskResultFilesDir = new File(task.getPathToTestResults());
                 if (taskResultFilesDir.isDirectory()) {
                     File[] files = taskResultFilesDir.listFiles(new FileFilter() {
