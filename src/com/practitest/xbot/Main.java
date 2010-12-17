@@ -13,26 +13,22 @@ import javax.xml.parsers.ParserConfigurationException;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileFilter;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.security.NoSuchAlgorithmException;
 import java.text.DateFormat;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.Date;
-import java.util.Deque;
-import java.util.LinkedList;
+import java.util.*;
 import java.util.List;
-import java.util.Properties;
-import java.util.Timer;
-import java.util.TimerTask;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
@@ -43,10 +39,14 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
  * @author stask.
+ *
+ * TODO: upload task console output (merged stderr and stdout)
+ *
  */
 public class Main {
     private static final Logger logger = Logger.getLogger(Main.class.getName());
@@ -360,16 +360,18 @@ public class Main {
             trayIcon.setImage(trayIconImageRunning);
             trayIcon.displayMessage(XBOT_TRAY_CAPTION, "PractiTest xBot is running: " + taskName, TrayIcon.MessageType.INFO);
 
-            TaskRunner taskRunner = new TaskRunner(task, 30); // currently, the timeout is 30 seconds. should be part of task
+            TaskRunner taskRunner = new TaskRunner(task);
             Thread taskRunnerThread = new Thread(taskRunner);
+            taskRunnerThread.setDaemon(true);
             taskRunnerThread.start();
             taskRunnerThread.join();
             if (taskRunner.isTimedOut())
                 addTestRunnerLog("Task [" + taskName + "] timed out");
             else
                 addTestRunnerLog("Task [" + taskName + "] finished with exit code " + taskRunner.getExitCode());
+            addTestRunnerLog("Task [" + taskName + "] output: [" + taskRunner.getOutput() + "]");
             addTestRunnerLog("Uploading test results...");
-            client.uploadResult(new Client.TaskResult(task.getInstanceId(), taskRunner.getExitCode(), taskRunner.getResultFiles()));
+            client.uploadResult(new Client.TaskResult(task.getInstanceId(), taskRunner.getExitCode(), taskRunner.getResultFiles(), taskRunner.getOutput()));
             addTestRunnerLog("Finished uploading test results.");
             trayIcon.setImage(trayIconImageReady);
             trayIcon.displayMessage(XBOT_TRAY_CAPTION, "PractiTest xBot finished running task, ready for the next one", TrayIcon.MessageType.INFO);
@@ -422,19 +424,17 @@ public class Main {
      * This class runs external process with given timeout.
      * The code is based on this article: http://kylecartmell.com/?p=9
      *
-     * TODO: read stdout/stderr of the spawned process.
      */
     static class TaskRunner implements Runnable {
         private Client.Task task;
-        private int timeout;
 
         private boolean timedOut = false;
         private int exitCode = -1;
         private java.util.List<File> resultFiles;
+        private String output;
 
-        public TaskRunner(Client.Task task, int timeout) {
+        public TaskRunner(Client.Task task) {
             this.task = task;
-            this.timeout = timeout;
         }
 
         public boolean isTimedOut() {
@@ -449,6 +449,10 @@ public class Main {
             return resultFiles;
         }
 
+        public String getOutput() {
+            return output;
+        }
+
         public void run() {
             Timer timer = null;
             Process process = null;
@@ -456,9 +460,16 @@ public class Main {
             try {
                 timer = new Timer(true);
                 Interrupter interrupter = new Interrupter(Thread.currentThread());
-                timer.schedule(interrupter, timeout * 1000);
-                process = Runtime.getRuntime().exec(task.getPathToTestApplication());
+                timer.schedule(interrupter, task.getTimeoutInSeconds() * 1000);
+                ProcessBuilder processBuilder = new ProcessBuilder(task.getPathToTestApplication());
+                processBuilder.redirectErrorStream(true);
+                process = processBuilder.start();
+                StreamDrainer streamDrainer = new StreamDrainer(process.getInputStream());
+                Thread streamDrainerThread = new Thread(streamDrainer);
+                streamDrainerThread.setDaemon(true);
+                streamDrainerThread.start();
                 exitCode = process.waitFor();
+                output = streamDrainer.getOutput();
                 captureFiles = true;
             } catch (InterruptedException e) {
                 // timeout expired
@@ -510,7 +521,32 @@ public class Main {
 
             @Override
             public void run() {
+                logger.info("Interrupting...");
                 thread.interrupt();
+            }
+        }
+
+        private static class StreamDrainer implements Runnable {
+            private final BufferedReader reader;
+            private final StringBuffer outputBuffer = new StringBuffer(); // use StringBuffer instead of StringBuilder -- synchronization
+
+            private StreamDrainer(InputStream inputStream) {
+                this.reader = new BufferedReader(new InputStreamReader(inputStream));
+            }
+
+            public void run() {
+                String line;
+                try {
+                    while (!Thread.interrupted() && (line = reader.readLine()) != null) {
+                        outputBuffer.append(line).append('\n');
+                    }
+                } catch (IOException e) {
+                    logger.log(Level.WARNING, "Failed to read process console stream", e);
+                }
+            }
+
+            public String getOutput() {
+                return outputBuffer.toString();
             }
         }
     }

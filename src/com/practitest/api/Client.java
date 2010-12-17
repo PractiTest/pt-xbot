@@ -55,11 +55,11 @@ public class Client {
         Document taskDocument = null;
         GetMethod getMethod = new GetMethod(url);
         try {
-            int http_result = getHTTPClient().executeMethod(getMethod);
-            if (http_result == HttpStatus.SC_OK) {
+            int httpResult = getHTTPClient().executeMethod(getMethod);
+            if (httpResult == HttpStatus.SC_OK) {
                 logger.info(getMethod.getResponseBodyAsString());
                 taskDocument = documentFactory.newDocumentBuilder().parse(getMethod.getResponseBodyAsStream());
-            } else if (http_result == HttpStatus.SC_INTERNAL_SERVER_ERROR)
+            } else if (httpResult == HttpStatus.SC_INTERNAL_SERVER_ERROR)
                 generateApiException(getMethod);
             else
                 logger.severe("Remote call failed: " + getMethod.getStatusLine().toString());
@@ -83,10 +83,10 @@ public class Client {
             postMethod.setRequestEntity(new MultipartRequestEntity(parts, postMethod.getParams()));
         }
         try {
-            int http_result = getHTTPClient().executeMethod(postMethod);
-            if (http_result == HttpStatus.SC_INTERNAL_SERVER_ERROR)
+            int httpResult = getHTTPClient().executeMethod(postMethod);
+            if (httpResult == HttpStatus.SC_INTERNAL_SERVER_ERROR)
                 generateApiException(postMethod);
-            else if (http_result != HttpStatus.SC_OK) {
+            else if (httpResult != HttpStatus.SC_OK) {
                 logger.severe("Remote call failed: " + postMethod.getStatusLine().toString());
             }
         } finally {
@@ -105,15 +105,16 @@ public class Client {
                     getInsideText(taskElement, "description"),
                     getInsideText(taskElement, "path-to-application"),
                     getInsideText(taskElement, "path-to-results"),
-                    Integer.parseInt(taskElement.getAttribute("num_of_files_to_upload")));
+                    Integer.parseInt(taskElement.getAttribute("num_of_files_to_upload")),
+                    Integer.parseInt(taskElement.getAttribute("timeout_in_seconds")));
         }
         return task;
     }
 
     private void generateApiException(HttpMethodBase mm) throws Exception {
-        NodeList error_elmnts = documentFactory.newDocumentBuilder().parse(mm.getResponseBodyAsStream()).getElementsByTagName("error");
-        if (error_elmnts.getLength() > 0)
-            throw new APIException(error_elmnts.item(0).getTextContent());
+        NodeList errorElements = documentFactory.newDocumentBuilder().parse(mm.getResponseBodyAsStream()).getElementsByTagName("error");
+        if (errorElements.getLength() > 0)
+            throw new APIException(errorElements.item(0).getTextContent());
         else
             throw new Exception("Remote call Failed Error #" + HttpStatus.SC_INTERNAL_SERVER_ERROR + ":" + mm.getResponseBodyAsString());
     }
@@ -148,22 +149,33 @@ public class Client {
     }
 
     public static class Task {
-        private String instanceId;
-        private String description;
-        private String pathToTestApplication;
-        private String pathToTestResults;
-        private int numOfFilesToUpload;
+        private final String instanceId;
+        private final String description;
+        private final String pathToTestApplication;
+        private final String pathToTestResults;
+        private final int numOfFilesToUpload;
+        private final int timeoutInSeconds;
 
-        public Task(String instanceId, String description, String pathToTestApplication, String pathToTestResults, int numOfFilesToUpload) {
+        public Task(String instanceId,
+                    String description,
+                    String pathToTestApplication,
+                    String pathToTestResults,
+                    int numOfFilesToUpload,
+                    int timeoutInSeconds) {
             this.instanceId = instanceId;
             this.description = description;
             this.pathToTestApplication = pathToTestApplication;
             this.pathToTestResults = pathToTestResults;
             this.numOfFilesToUpload = numOfFilesToUpload;
+            this.timeoutInSeconds = timeoutInSeconds;
         }
 
         public String getInstanceId() {
             return instanceId;
+        }
+
+        public String getDescription() {
+            return description;
         }
 
         public String getPathToTestApplication() {
@@ -178,8 +190,8 @@ public class Client {
             return numOfFilesToUpload;
         }
 
-        public String getDescription() {
-            return description;
+        public int getTimeoutInSeconds() {
+            return timeoutInSeconds;
         }
     }
 
@@ -190,14 +202,16 @@ public class Client {
     }
 
     public static class TaskResult {
-        private String instanceId;
-        private int exitCode;
-        private List<File> files;
+        private final String instanceId;
+        private final int exitCode;
+        private final List<File> files;
+        private final String output;
 
-        public TaskResult(String instanceId, int exitCode, List<File> files) {
+        public TaskResult(String instanceId, int exitCode, List<File> files, String output) {
             this.instanceId = instanceId;
             this.exitCode = exitCode;
             this.files = files;
+            this.output = output;
         }
 
         public String getInstanceId() {
@@ -210,6 +224,10 @@ public class Client {
 
         public List<File> getFiles() {
             return files;
+        }
+
+        public String getOutput() {
+            return output;
         }
     }
 }
