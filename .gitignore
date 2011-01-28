@@ -3,3 +3,4 @@ out
 *.iml
 xbot.properties
 build
+.DS_Store
