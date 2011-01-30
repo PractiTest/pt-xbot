@@ -8,8 +8,8 @@ import junit.framework.*;
 
 public class TestTaskRunner extends TestCase {
     public void testRunTimeout() throws Exception {
-        Client.Task task = new Client.Task("dummy", "dummy", "etc/dummyTask10.sh", "etc", 2);
-        Main.TaskRunner taskRunner = new Main.TaskRunner(task, 3);
+        Client.Task task = new Client.Task("dummy", "dummy", "etc/dummyTask10.sh", "etc", 2, 30);
+        Main.TaskRunner taskRunner = new Main.TaskRunner(task);
         Thread taskRunnerThread = new Thread(taskRunner);
         taskRunnerThread.start();
         taskRunnerThread.join();
@@ -17,8 +17,8 @@ public class TestTaskRunner extends TestCase {
     }
 
     public void testRunNoTimeout() throws Exception {
-        Client.Task task = new Client.Task("dummy", "dummy", "etc/dummyTask10.sh", "etc", 2);
-        Main.TaskRunner taskRunner = new Main.TaskRunner(task, 12);
+        Client.Task task = new Client.Task("dummy", "dummy", "etc/dummyTask10.sh", "etc", 2, 10);
+        Main.TaskRunner taskRunner = new Main.TaskRunner(task);
         Thread taskRunnerThread = new Thread(taskRunner);
         taskRunnerThread.start();
         taskRunnerThread.join();
