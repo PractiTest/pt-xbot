@@ -134,8 +134,8 @@ public class Client {
     private StringBuilder constructURL(String command) throws MalformedURLException, NoSuchAlgorithmException {
         StringBuilder sb = new StringBuilder();
         long timestamp = new Date().getTime();
-        return sb.append(serverURL).append("/api/automated_tests/").append(command).append(".xml?api_key=").
-                append(apiKey).append("&signature=").append(createSignature(timestamp)).
+        return sb.append(serverURL).append("/api/").append(apiKey).append("/automated_tests/").append(command).
+                append(".xml?signature=").append(createSignature(timestamp)).
                 append("&ts=").append(timestamp).append("&client_id=").append(clientId).
                 append("&xbot_version=").append(XBOT_VERSION);
     }
