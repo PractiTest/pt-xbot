@@ -461,7 +461,9 @@ public class Main {
                 timer = new Timer(true);
                 Interrupter interrupter = new Interrupter(Thread.currentThread());
                 timer.schedule(interrupter, task.getTimeoutInSeconds() * 1000);
-                ProcessBuilder processBuilder = new ProcessBuilder(task.getPathToTestApplication());
+                File fullPath = new File(task.getPathToTestApplication());
+                ProcessBuilder processBuilder = new ProcessBuilder(fullPath.getAbsolutePath());
+                processBuilder.directory(fullPath.getParentFile());
                 processBuilder.redirectErrorStream(true);
                 process = processBuilder.start();
                 StreamDrainer streamDrainer = new StreamDrainer(process.getInputStream());
