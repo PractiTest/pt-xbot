@@ -88,6 +88,7 @@ public class Main {
         exitCondition = lock.newCondition();
 
         initializeHTTPListener();
+        addTestRunnerLog("Running version " + this.getClass().getPackage().getImplementationVersion());
         addTestRunnerLog("Loading with API Key: " + apiKey + " and serverURL: " + serverURL);
         initializeClient();
         initializeScheduler();
@@ -235,7 +236,9 @@ public class Main {
                     response.setStatus(HttpServletResponse.SC_OK);
                     PrintWriter out = response.getWriter();
                     out.println("<html><head><meta http-equiv=\"refresh\" content=\"5\" /><title>PractiTest xBot log</title></head>");
-                    out.println("<body><h1>PractiTest xBot log</h1><div>");
+                    out.println("<body><h1>PractiTest xBot v" +
+                                this.getClass().getPackage().getImplementationVersion() +
+                                " log</h1><div>");
                     synchronized (testRunnerLog) {
                         for (String message : testRunnerLog) {
                             out.println("<p>");
