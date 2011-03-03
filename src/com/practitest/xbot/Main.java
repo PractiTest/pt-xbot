@@ -477,7 +477,7 @@ public class Main {
                         parameters.add(parametersMatcher.group());
                     }
                 }
-                logger.info(parameters.toString());
+                logger.info("Running command [" + parameters.toString() + "]");
                 File workingDirectory = new File(parameters.get(0)).getParentFile();
                 ProcessBuilder processBuilder = new ProcessBuilder(parameters);
                 processBuilder.directory(workingDirectory);
