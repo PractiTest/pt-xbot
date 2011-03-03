@@ -41,6 +41,8 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * @author stask.
@@ -60,6 +62,8 @@ public class Main {
     private static final int TEST_RUNNER_DELAY = 60;
     private static final int TEST_RUNNER_INITIAL_DELAY = 3;
     private static final int MAX_TEST_RUNNER_LOG = 10;
+
+    private static final Pattern PARAMETER_PARSER_PATTERN = Pattern.compile("[^\\s\"']+|\"([^\"]*)\"|'([^']*)'");
 
     private Image trayIconImageReady;
     private Image trayIconImageRunning;
@@ -461,13 +465,26 @@ public class Main {
             Process process = null;
             boolean captureFiles = false;
             try {
+                // parse the command line
+                List<String> parameters = new ArrayList<String>();
+                Matcher parametersMatcher = PARAMETER_PARSER_PATTERN.matcher(task.getPathToTestApplication());
+                while (parametersMatcher.find()) {
+                    if (parametersMatcher.group(1) != null) {
+                        parameters.add(parametersMatcher.group(1));
+                    } else if (parametersMatcher.group(2) != null) {
+                        parameters.add(parametersMatcher.group(2));
+                    } else {
+                        parameters.add(parametersMatcher.group());
+                    }
+                }
+                logger.info(parameters.toString());
+                File workingDirectory = new File(parameters.get(0)).getParentFile();
+                ProcessBuilder processBuilder = new ProcessBuilder(parameters);
+                processBuilder.directory(workingDirectory);
+                processBuilder.redirectErrorStream(true);
                 timer = new Timer(true);
                 Interrupter interrupter = new Interrupter(Thread.currentThread());
                 timer.schedule(interrupter, task.getTimeoutInSeconds() * 1000);
-                File fullPath = new File(task.getPathToTestApplication());
-                ProcessBuilder processBuilder = new ProcessBuilder(fullPath.getAbsolutePath());
-                processBuilder.directory(fullPath.getParentFile());
-                processBuilder.redirectErrorStream(true);
                 process = processBuilder.start();
                 StreamDrainer streamDrainer = new StreamDrainer(process.getInputStream());
                 Thread streamDrainerThread = new Thread(streamDrainer);
