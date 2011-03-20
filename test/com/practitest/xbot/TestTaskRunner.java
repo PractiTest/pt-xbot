@@ -4,12 +4,15 @@ package com.practitest.xbot;
  */
 
 import com.practitest.api.Client;
-import junit.framework.*;
+import junit.framework.TestCase;
+
+import java.io.File;
 
 public class TestTaskRunner extends TestCase {
+    private static String DUMMY_SCRIPT = new File("./etc/dummyTask10.sh").getAbsolutePath();
     public void testRunTimeout() throws Exception {
-        Client.Task task = new Client.Task("dummy", "dummy", "etc/dummyTask10.sh", "etc", 2, 30);
-        Main.TaskRunner taskRunner = new Main.TaskRunner(task);
+        Client.Task task = new Client.Task("dummy", "dummy", DUMMY_SCRIPT, "etc", 2, 2);
+        Main.TaskRunner taskRunner = new DummyMain().createTaskRunner(task);
         Thread taskRunnerThread = new Thread(taskRunner);
         taskRunnerThread.start();
         taskRunnerThread.join();
@@ -17,12 +20,22 @@ public class TestTaskRunner extends TestCase {
     }
 
     public void testRunNoTimeout() throws Exception {
-        Client.Task task = new Client.Task("dummy", "dummy", "etc/dummyTask10.sh", "etc", 2, 10);
-        Main.TaskRunner taskRunner = new Main.TaskRunner(task);
+        Client.Task task = new Client.Task("dummy", "dummy", DUMMY_SCRIPT, "etc", 2, 12);
+        Main.TaskRunner taskRunner = new DummyMain().createTaskRunner(task);
         Thread taskRunnerThread = new Thread(taskRunner);
         taskRunnerThread.start();
         taskRunnerThread.join();
         assertFalse("Timed out", taskRunner.isTimedOut());
         assertEquals(0, taskRunner.getExitCode());
+    }
+
+    private static class DummyMain extends Main {
+        public DummyMain() throws Exception {
+            super(-1, true);
+        }
+
+        public TaskRunner createTaskRunner(Client.Task task) {
+            return new TaskRunner(task);
+        }
     }
 }

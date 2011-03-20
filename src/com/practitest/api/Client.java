@@ -29,7 +29,6 @@ public class Client {
     private static final Logger logger = Logger.getLogger(Client.class.getName());
 
     private static final int DEFAULT_CONNECTION_TIMEOUT = 5000;
-    private static final int XBOT_VERSION = 1;
 
     private static final DocumentBuilderFactory documentFactory = DocumentBuilderFactory.newInstance();
 
@@ -37,10 +36,11 @@ public class Client {
     private String apiKey;
     private String apiSecretKey;
     private String clientId;
+    private String version;
 
     private HttpClient httpClient;
 
-    public Client(String serverURL, String apiKey, String apiSecretKey, String clientId) {
+    public Client(String serverURL, String apiKey, String apiSecretKey, String clientId, String version) {
         if (serverURL.endsWith("/") || serverURL.endsWith("\\"))
             this.serverURL = serverURL.substring(0, serverURL.length() - 1);
         else
@@ -48,6 +48,7 @@ public class Client {
         this.apiKey = apiKey;
         this.apiSecretKey = apiSecretKey;
         this.clientId = clientId;
+        this.version = version;
     }
 
     public Task nextTask() throws Exception {
@@ -69,7 +70,7 @@ public class Client {
         return parseTaskDocument(taskDocument);
     }
 
-    public void uploadResult(TaskResult result) throws Exception {
+    public String uploadResult(TaskResult result) throws Exception {
         StringBuilder urlBuilder = constructURL("upload_test_result");
         urlBuilder.append("&instance_id=").append(result.getInstanceId());
         urlBuilder.append("&exit_code=").append(result.getExitCode());
@@ -92,6 +93,7 @@ public class Client {
         } finally {
             postMethod.releaseConnection();
         }
+        return urlBuilder.toString();
     }
 
     private Task parseTaskDocument(Document taskDocument) {
@@ -137,7 +139,7 @@ public class Client {
         return sb.append(serverURL).append("/api/").append(apiKey).append("/automated_tests/").append(command).
                 append(".xml?signature=").append(createSignature(timestamp)).
                 append("&ts=").append(timestamp).append("&client_id=").append(clientId).
-                append("&xbot_version=").append(XBOT_VERSION);
+                append("&xbot_version=").append(version);
     }
 
     private String createSignature(long timestamp) throws NoSuchAlgorithmException {

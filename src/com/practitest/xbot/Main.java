@@ -46,12 +46,13 @@ import java.util.regex.Pattern;
 
 /**
  * @author stask.
- *
- * TODO: upload task console output (merged stderr and stdout)
- *
+ *         <p/>
+ *         TODO: upload task console output (merged stderr and stdout)
  */
 public class Main {
     private static final Logger logger = Logger.getLogger(Main.class.getName());
+
+    private static final String VERSION = Main.class.getPackage().getImplementationVersion() != null ? Main.class.getPackage().getImplementationVersion() : "INTERNAL";
 
     private static final String NO_TRAY_ICON_PROPERTY_KEY = "com.practitest.xbot.no_tray_icon";
     private static final String LISTENING_PORT_PROPERTY_KEY = "com.practitest.xbot.listening_port";
@@ -61,7 +62,7 @@ public class Main {
     private static final int DEFAULT_LISTENING_PORT = 18080;
     private static final int TEST_RUNNER_DELAY = 60;
     private static final int TEST_RUNNER_INITIAL_DELAY = 3;
-    private static final int MAX_TEST_RUNNER_LOG = 10;
+    private static final int MAX_TEST_RUNNER_LOG = 100;
 
     private static final Pattern PARAMETER_PARSER_PATTERN = Pattern.compile("[^\\s\"']+|\"([^\"]*)\"|'([^']*)'");
 
@@ -76,7 +77,7 @@ public class Main {
     private Server theServer;
     private AtomicReference<Client> theClient = new AtomicReference<Client>();
     private ScheduledFuture<?> testRunner;
-    private final Deque<String> testRunnerLog;
+    private final Deque<String> testRunnerLog = new LinkedList<String>();
 
     private String apiKey = "";
     private String apiSecretKey = "";
@@ -84,33 +85,33 @@ public class Main {
     private String clientId = "";
 
     public Main(int listeningPort, boolean noTrayIcon) throws Exception {
-        loadSettings();
-
-        testRunnerLog = new LinkedList<String>();
-        this.listeningPort = listeningPort;
-        lock = new ReentrantLock();
-        exitCondition = lock.newCondition();
-
-        initializeHTTPListener();
-        addTestRunnerLog("Running version " + this.getClass().getPackage().getImplementationVersion());
-        addTestRunnerLog("Loading with API Key: " + apiKey + " and serverURL: " + serverURL);
-        initializeClient();
-        initializeScheduler();
-        if (!noTrayIcon) {
-            initializeTrayIcon();
-        }
-
-        Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
-            public void run() {
-                logger.info("In shutdown hook");
-                lock.lock();
-                try {
-                    exitCondition.signal();
-                } finally {
-                    lock.unlock();
-                }
+        logger.info("Running v" + VERSION);
+        if (listeningPort > 0) {
+            loadSettings();
+            this.listeningPort = listeningPort;
+            lock = new ReentrantLock();
+            exitCondition = lock.newCondition();
+            initializeHTTPListener();
+            addTestRunnerLog("Running version " + VERSION);
+            addTestRunnerLog("Loading with API Key: " + apiKey + " and serverURL: " + serverURL);
+            initializeClient();
+            initializeScheduler();
+            if (!noTrayIcon) {
+                initializeTrayIcon();
             }
-        }));
+
+            Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
+                public void run() {
+                    logger.info("In shutdown hook");
+                    lock.lock();
+                    try {
+                        exitCondition.signal();
+                    } finally {
+                        lock.unlock();
+                    }
+                }
+            }));
+        } // else -- running from test
     }
 
     public void run() {
@@ -240,9 +241,7 @@ public class Main {
                     response.setStatus(HttpServletResponse.SC_OK);
                     PrintWriter out = response.getWriter();
                     out.println("<html><head><meta http-equiv=\"refresh\" content=\"5\" /><title>PractiTest xBot log</title></head>");
-                    out.println("<body><h1>PractiTest xBot v" +
-                                this.getClass().getPackage().getImplementationVersion() +
-                                " log</h1><div>");
+                    out.println("<body><h1>PractiTest xBot v" + VERSION + " log</h1><div>");
                     synchronized (testRunnerLog) {
                         for (String message : testRunnerLog) {
                             out.println("<p>");
@@ -328,7 +327,7 @@ public class Main {
     private void initializeClient() {
         theClient.set(null);
         if (serverURL.isEmpty() || apiKey.isEmpty() || apiSecretKey.isEmpty() || clientId.isEmpty()) return;
-        theClient.set(new Client(serverURL, apiKey, apiSecretKey, clientId));
+        theClient.set(new Client(serverURL, apiKey, apiSecretKey, clientId, VERSION));
         if (trayIcon != null) {
             trayIcon.setImage(trayIconImageReady);
             trayIcon.displayMessage(XBOT_TRAY_CAPTION, "PractiTest xBot is ready", TrayIcon.MessageType.INFO);
@@ -378,8 +377,8 @@ public class Main {
                 addTestRunnerLog("Task [" + taskName + "] finished with exit code " + taskRunner.getExitCode());
             addTestRunnerLog("Task [" + taskName + "] output: [" + taskRunner.getOutput() + "]");
             addTestRunnerLog("Uploading test results...");
-            client.uploadResult(new Client.TaskResult(task.getInstanceId(), taskRunner.getExitCode(), taskRunner.getResultFiles(), taskRunner.getOutput()));
-            addTestRunnerLog("Finished uploading test results.");
+            String uploadedTo = client.uploadResult(new Client.TaskResult(task.getInstanceId(), taskRunner.getExitCode(), taskRunner.getResultFiles(), taskRunner.getOutput()));
+            addTestRunnerLog("Finished uploading test results [" + uploadedTo + "].");
             trayIcon.setImage(trayIconImageReady);
             trayIcon.displayMessage(XBOT_TRAY_CAPTION, "PractiTest xBot finished running task, ready for the next one", TrayIcon.MessageType.INFO);
         } catch (IOException e) {
@@ -430,9 +429,8 @@ public class Main {
     /**
      * This class runs external process with given timeout.
      * The code is based on this article: http://kylecartmell.com/?p=9
-     *
      */
-    static class TaskRunner implements Runnable {
+    class TaskRunner implements Runnable {
         private Client.Task task;
 
         private boolean timedOut = false;
@@ -478,6 +476,7 @@ public class Main {
                     }
                 }
                 logger.info("Running command [" + parameters.toString() + "]");
+                addTestRunnerLog("Running command [" + parameters.toString() + "]");
                 File workingDirectory = new File(parameters.get(0)).getParentFile();
                 ProcessBuilder processBuilder = new ProcessBuilder(parameters);
                 processBuilder.directory(workingDirectory);
@@ -495,10 +494,17 @@ public class Main {
                 captureFiles = true;
             } catch (InterruptedException e) {
                 // timeout expired
+                addTestRunnerLog("Timeout expired for [" + task.getDescription() + "]");
+                logger.warning("Timeout expired for [" + task.getDescription() + "]");
                 timedOut = true;
-                process.destroy();
+                if (process != null)
+                    process.destroy();
             } catch (IOException e) {
                 // some other error
+                addTestRunnerLog("IO exception while running [" + task.getDescription() + "]: " + e.getMessage());
+                logger.warning("IO exception while running [" + task.getDescription() + "]: " + e.getMessage());
+                if (process != null)
+                    process.destroy();
             } finally {
                 // If the process returns within the timeout period, we have to stop the interrupter
                 // so that it does not unexpectedly interrupt some other code later.
@@ -534,7 +540,7 @@ public class Main {
             }
         }
 
-        private static class Interrupter extends TimerTask {
+        private class Interrupter extends TimerTask {
             private Thread thread;
 
             public Interrupter(Thread thread) {
@@ -544,11 +550,12 @@ public class Main {
             @Override
             public void run() {
                 logger.info("Interrupting...");
+                addTestRunnerLog("Interrupting...");
                 thread.interrupt();
             }
         }
 
-        private static class StreamDrainer implements Runnable {
+        private class StreamDrainer implements Runnable {
             private final BufferedReader reader;
             private final StringBuffer outputBuffer = new StringBuffer(); // use StringBuffer instead of StringBuilder -- synchronization
 
