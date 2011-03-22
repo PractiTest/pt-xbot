@@ -376,8 +376,16 @@ public class Main {
             else
                 addTestRunnerLog("Task [" + taskName + "] finished with exit code " + taskRunner.getExitCode());
             addTestRunnerLog("Task [" + taskName + "] output: [" + taskRunner.getOutput() + "]");
-            addTestRunnerLog("Uploading test results...");
-            String uploadedTo = client.uploadResult(new Client.TaskResult(task.getInstanceId(), taskRunner.getExitCode(), taskRunner.getResultFiles(), taskRunner.getOutput()));
+            addTestRunnerLog("Uploading test results..." +
+                             (taskRunner.getResultFiles() == null ?
+                              "[no result files]" :
+                              taskRunner.getResultFiles().toString()));
+            String uploadedTo = client.uploadResult(
+                    new Client.TaskResult(
+                            task.getInstanceId(),
+                            taskRunner.getExitCode(),
+                            taskRunner.getResultFiles(),
+                            taskRunner.getOutput()));
             addTestRunnerLog("Finished uploading test results [" + uploadedTo + "].");
             trayIcon.setImage(trayIconImageReady);
             trayIcon.displayMessage(XBOT_TRAY_CAPTION, "PractiTest xBot finished running task, ready for the next one", TrayIcon.MessageType.INFO);
