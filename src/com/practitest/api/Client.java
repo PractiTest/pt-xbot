@@ -1,6 +1,7 @@
 package com.practitest.api;
 
 import org.apache.commons.httpclient.HttpClient;
+import org.apache.commons.httpclient.HttpMethod;
 import org.apache.commons.httpclient.HttpMethodBase;
 import org.apache.commons.httpclient.HttpStatus;
 import org.apache.commons.httpclient.methods.GetMethod;
@@ -15,7 +16,6 @@ import org.w3c.dom.NodeList;
 import javax.xml.parsers.DocumentBuilderFactory;
 import java.io.File;
 import java.math.BigInteger;
-import java.net.MalformedURLException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Date;
@@ -55,6 +55,7 @@ public class Client {
         String url = constructURL("next_test").toString();
         Document taskDocument = null;
         GetMethod getMethod = new GetMethod(url);
+        setAuthenticationParameters(getMethod);
         try {
             int httpResult = getHTTPClient().executeMethod(getMethod);
             if (httpResult == HttpStatus.SC_OK) {
@@ -75,6 +76,7 @@ public class Client {
         urlBuilder.append("&instance_id=").append(result.getInstanceId());
         urlBuilder.append("&exit_code=").append(result.getExitCode());
         PostMethod postMethod = new PostMethod(urlBuilder.toString());
+        setAuthenticationParameters(postMethod);
         if (result.getFiles() != null && !result.getFiles().isEmpty()) {
             Part[] parts = new FilePart[result.getFiles().size()];
             for (int i = 0; i < result.getFiles().size(); ++i) {
@@ -133,12 +135,10 @@ public class Client {
         return httpClient;
     }
 
-    private StringBuilder constructURL(String command) throws MalformedURLException, NoSuchAlgorithmException {
+    private StringBuilder constructURL(String command) {
         StringBuilder sb = new StringBuilder();
-        long timestamp = new Date().getTime();
-        return sb.append(serverURL).append("/api/automated_tests/").append(command).append(".xml?api_key=").
-                append(apiKey).append("&signature=").append(createSignature(timestamp)).
-                append("&ts=").append(timestamp).append("&clientId=").append(clientId).
+        return sb.append(serverURL).
+                append("/api/automated_tests/").append(command).append(".xml?clientId=").append(clientId).
                 append("&xbot_version=").append(version);
     }
 
@@ -148,6 +148,15 @@ public class Client {
         MessageDigest digest = MessageDigest.getInstance("MD5");
         digest.update(sb.toString().getBytes());
         return String.format("%1$032x", new BigInteger(1, digest.digest()));
+    }
+
+    private void setAuthenticationParameters(HttpMethod request) throws NoSuchAlgorithmException {
+        StringBuilder sb = new StringBuilder();
+        long timestamp = new Date().getTime();
+        sb.append("custom api_key=").append(apiKey).
+                append(", signature=").append(createSignature(timestamp)).
+                append(", ts=").append(timestamp);
+        request.setRequestHeader("Authorization", sb.toString());
     }
 
     public static class Task {
