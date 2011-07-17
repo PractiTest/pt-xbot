@@ -6,9 +6,6 @@ import org.apache.commons.httpclient.HttpMethodBase;
 import org.apache.commons.httpclient.HttpStatus;
 import org.apache.commons.httpclient.methods.GetMethod;
 import org.apache.commons.httpclient.methods.PostMethod;
-import org.apache.commons.httpclient.methods.multipart.FilePart;
-import org.apache.commons.httpclient.methods.multipart.MultipartRequestEntity;
-import org.apache.commons.httpclient.methods.multipart.Part;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
@@ -73,18 +70,22 @@ public class Client {
 
     public String uploadResult(TaskResult result) throws Exception {
         StringBuilder urlBuilder = constructURL("upload_test_result");
-        urlBuilder.append("&instance_id=").append(result.getInstanceId());
-        urlBuilder.append("&exit_code=").append(result.getExitCode());
+        urlBuilder.append("&request[instance_id]=").append(result.getInstanceId());
+        urlBuilder.append("&request[exit_code]=").append(result.getExitCode());
         PostMethod postMethod = new PostMethod(urlBuilder.toString());
         setAuthenticationParameters(postMethod);
-        if (result.getFiles() != null && !result.getFiles().isEmpty()) {
-            Part[] parts = new FilePart[result.getFiles().size()];
-            for (int i = 0; i < result.getFiles().size(); ++i) {
-                File file = result.getFiles().get(i);
-                parts[i] = new FilePart("result[" + file.getName() + "]", file);
-            }
-            postMethod.setRequestEntity(new MultipartRequestEntity(parts, postMethod.getParams()));
-        }
+//        List<Part> parts = new LinkedList<Part>();
+        // TODO: re-enable attachments uploading
+        //       there is a bug in rails 3.0.x: we cannot post both XML and file attachments.
+        //       it's fixed in 3.1
+//        if (result.getFiles() != null && !result.getFiles().isEmpty()) {
+//            for (int i = 0; i < result.getFiles().size(); ++i) {
+//                File file = result.getFiles().get(i);
+//                parts.add(new FilePart("result[" + file.getName() + "]", file));
+//            }
+//        }
+//        if (!parts.isEmpty())
+//            postMethod.setRequestEntity(new MultipartRequestEntity(parts.toArray(new Part[parts.size()]), postMethod.getParams()));
         try {
             int httpResult = getHTTPClient().executeMethod(postMethod);
             if (httpResult == HttpStatus.SC_INTERNAL_SERVER_ERROR)
