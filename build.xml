@@ -66,4 +66,20 @@
             </path>
         </signjar>
     </target>
+
+    <target name="uberjar" depends="test">
+      <jar destfile="${build.dir}/${ant.project.name}-all.jar">
+        <manifest>
+          <attribute name="Built-By" value="${user.name}" />
+          <attribute name="Implementation-Version" value="${implementation.version}" />
+          <attribute name="Main-Class" value="com.practitest.xbot.Main" />
+        </manifest>
+        <fileset dir="${build.classes.dir}">
+          <exclude name="**/Test*" />
+        </fileset>
+        <zipgroupfileset dir="${lib.dir}">
+          <include name="*.jar" />
+        </zipgroupfileset>
+      </jar>
+    </target>
 </project>
