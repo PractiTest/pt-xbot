@@ -4,3 +4,7 @@ out
 xbot.properties
 build
 .DS_Store
+com.practitest-xbot-test.graphml
+com.practitest-xbot-test.html
+ivy-report.css
+lib/*.jar

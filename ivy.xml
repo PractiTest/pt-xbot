@@ -1,0 +1,15 @@
+<ivy-module version="2.0">
+    <info organisation="com.practitest" module="xbot" />
+    <configurations>
+        <conf name="default" />
+        <conf name="test" extends="default" />
+    </configurations>
+    <dependencies>
+        <dependency org="org.mortbay.jetty" name="jetty" rev="6.1.26" />
+        <dependency org="org.apache.httpcomponents" name="httpclient" rev="4.1.2"/>
+        <dependency org="commons-logging" name="commons-logging-api" rev="1.1"/>
+
+        <!-- testing frameworks -->
+        <dependency org="junit" name="junit" rev="4.8.2" conf="test->default" />
+    </dependencies>
+</ivy-module>

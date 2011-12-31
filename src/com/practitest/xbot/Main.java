@@ -13,15 +13,7 @@ import javax.xml.parsers.ParserConfigurationException;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileFilter;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
+import java.io.*;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -29,12 +21,7 @@ import java.security.NoSuchAlgorithmException;
 import java.text.DateFormat;
 import java.util.*;
 import java.util.List;
-import java.util.concurrent.CancellationException;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
@@ -83,6 +70,10 @@ public class Main {
     private String apiSecretKey = "";
     private String serverURL = "";
     private String clientId = "";
+    private String proxyHost = "";
+    private int proxyPort = -1;
+    private String proxyUser = "";
+    private String proxyPassword = "";
 
     public Main(int listeningPort, boolean noTrayIcon) throws Exception {
         logger.info("Running v" + VERSION);
@@ -175,7 +166,7 @@ public class Main {
         settings.setProperty("client_id", clientId);
         try {
             settings.store(new FileWriter(new File(System.getProperty("user.dir"), "xbot.properties")),
-                           "Please do not change this file manually, it'll be re-written by the application anyway.");
+                    "Please do not change this file manually, it'll be re-written by the application anyway.");
         } catch (IOException e) {
             logger.severe("Failed to store application settings: " + e.getMessage());
         }
@@ -196,45 +187,30 @@ public class Main {
                 } else if (target.equals("/preferences")) {
                     response.setContentType("text/html");
                     response.setStatus(HttpServletResponse.SC_OK);
-                    PrintWriter out = response.getWriter();
-                    out.println("<html><head><title>PractiTest xBot preferences</title></head>");
-                    out.println("<body><form method=\"POST\" action=\"/set_preferences\">");
-                    out.println("<table style=\"width:80%;\">");
-                    out.println("<caption>PractiTest xBot configuration</caption>");
-                    out.println("<tr>");
-                    out.println("<th style=\"text-align:right; width:30%;\"><label for=\"server_url\">PractiTest URL:</label></th>");
-                    out.println("<td style=\"text-align:left; width:70%;\"><input type=\"text\" id=\"server_url\" name=\"server_url\" value=\"" + serverURL + "\" /></td>");
-                    out.println("</tr>");
-                    out.println("<tr>");
-                    out.println("<th style=\"text-align:right; width:30%;\"><label for=\"api_key\">API Key:</label></th>");
-                    out.println("<td style=\"text-align:left; width:70%;\"><input type=\"text\" id=\"api_key\" name=\"api_key\" value=\"" + apiKey + "\" /></td>");
-                    out.println("</tr>");
-                    out.println("<tr>");
-                    out.println("<th style=\"text-align:right; width:30%;\"><label for=\"api_secret_key\">API Secret Key:</label></th>");
-                    out.println("<td style=\"text-align:left; width:70%;\"><input type=\"text\" id=\"api_secret_key\" name=\"api_secret_key\" value=\"" + apiSecretKey + "\" /></td>");
-                    out.println("</tr>");
-
-                    out.println("<tr>");
-                    out.println("<th style=\"text-align:right; width:30%;\"><label for=\"client_id\">Client ID:</label></th>");
-                    out.println("<td style=\"text-align:left; width:70%;\"><input type=\"text\" id=\"client_id\" name=\"client_id\" value=\"" + clientId + "\" /></td>");
-                    out.println("</tr>");
-
-                    out.println("<tr>  <td colspan=\"2\">");
-                    out.println("<a href=\"/log\">View Log</a> &nbsp; &nbsp;");
-                    out.println("<!-- build=1.01 -->");
-                    out.println("<input type=\"submit\" value=\"Update &rArr;\" />");
-                    out.println("</td>  </tr>");
-                    out.println("</table>");
-                    out.println("</form></body></html>");
+                    printPreferences(response.getWriter());
                     ((Request) request).setHandled(true);
                 } else if (target.equals("/set_preferences")) {
                     serverURL = request.getParameter("server_url");
                     apiKey = request.getParameter("api_key");
                     apiSecretKey = request.getParameter("api_secret_key");
                     clientId = request.getParameter("client_id");
+                    proxyHost = request.getParameter("proxy_host");
+                    try {
+                        proxyPort = Integer.parseInt(request.getParameter("proxy_port"));
+                    } catch (NumberFormatException e) {
+                        proxyPort = -1;
+                    }
+                    proxyUser = request.getParameter("proxy_user");
+                    proxyPassword = request.getParameter("proxy_password");
                     saveSettings();
                     initializeClient();
-                    response.sendRedirect("/preferences");
+                    if (request.getParameterMap().containsKey("validate")) {
+                        response.setContentType("text/html");
+                        response.setStatus(HttpServletResponse.SC_OK);
+                        printConnectionStatus(response.getWriter(), theClient.get().validate());
+                    } else {
+                        response.sendRedirect("/preferences");
+                    }
                     ((Request) request).setHandled(true);
                 } else if (target.equals("/log")) {
                     response.setContentType("text/html");
@@ -252,6 +228,91 @@ public class Main {
                     out.println("</div></body></html>");
                     ((Request) request).setHandled(true);
                 }
+            }
+
+            private void printConnectionStatus(PrintWriter out, boolean status) {
+                out.println("<html>");
+                out.println("<body>");
+                out.append("<h3>Connection status: ").append(status ? "OK" : "FAILED").append("</h3>");
+                out.println("<a href='/preferences'>Back to preferences</a>");
+                out.println("</body>");
+                out.println("</html>");
+            }
+
+            private void printPreferences(PrintWriter out) {
+                out.println("<html>");
+                printHeader(out, "PractiTest xBot preferences");
+                out.println("<body>");
+                out.println("<body>");
+                out.println("<form method='POST' action='set_preferences'>");
+                out.println("<table>");
+
+                out.println("<caption>PractiTest xBot configuration</caption>");
+
+                out.println("<tr>");
+                out.println("<th><label for='server_url'>PractiTest URL:</label></th>");
+                out.println("<td><input type='text' id='server_url' name='server_url' value='" + serverURL + "' /></td>");
+                out.println("</tr>");
+
+                out.println("<tr>");
+                out.println("<th><label for='api_key'>API Key:</label></th>");
+                out.println("<td><input type='text' id='api_key' name='api_key' value='" + apiKey + "' /></td>");
+                out.println("</tr>");
+
+                out.println("<tr>");
+                out.println("<th><label for='api_secret_key'>API Secret Key:</label></th>");
+                out.println("<td><input type='text' id='api_secret_key' name='api_secret_key' value='" + apiSecretKey + "' /></td>");
+                out.println("</tr>");
+
+                out.println("<tr>");
+                out.println("<th><label for='client_id'>Client ID:</label></th>");
+                out.println("<td><input type='text' id='client_id' name='client_id' value='" + clientId + "' /></td>");
+                out.println("</tr>");
+
+                out.println("<tr>");
+                out.println("<th><label for='proxy_host'>Proxy Host:</label></th>");
+                out.println("<td><input type='text' id='proxy_host' name='proxy_port' value='" + proxyHost + "' /></td>");
+                out.println("</tr>");
+
+                out.println("<tr>");
+                out.println("<th><label for='proxy_port'>Proxy Port:</label></th>");
+                out.println("<td><input type='text' id='proxy_port' name='proxy_port' value='" + proxyPort + "' /></td>");
+                out.println("</tr>");
+
+                out.println("<tr>");
+                out.println("<th><label for='proxy_user'>Proxy User Name:</label></th>");
+                out.println("<td><input type='text' id='proxy_user' name='proxy_user' value='" + proxyUser + "' /></td>");
+                out.println("</tr>");
+
+                out.println("<tr>");
+                out.println("<th><label for='proxy_password'>Proxy Password:</label></th>");
+                out.println("<td><input type='text' id='proxy_password' name='proxy_password' value='" + proxyPassword + "' /></td>");
+                out.println("</tr>");
+
+                out.println("<tr>");
+                out.println("<td colspan='2' class='actions'>");
+                out.println("<a href='/log'>View Log</a>&nbsp;&nbsp;");
+                out.println("<input type='submit' name='validate' value='Validate &rArr;' />");
+                out.println("<input type='submit' name='update' value='Update &rArr;' />");
+                out.println("</td>");
+                out.println("</tr>");
+
+                out.println("</table>");
+                out.println("</form>");
+                out.println("</body>");
+                out.println("</html>");
+            }
+
+            private void printHeader(PrintWriter out, String title) {
+                out.append("<head>");
+                out.append("<title>").append(title).append("</title>");
+                out.append("<style>");
+                out.append("table {width: 80%;}");
+                out.append("th {text-align: right; width: 30%;}");
+                out.append("td {text-align: left; width: 70%;}");
+                out.append("td.actions {text-align: center; width: 100%;}");
+                out.append("</style>");
+                out.append("</head>");
             }
         });
         theServer.start();
@@ -377,9 +438,9 @@ public class Main {
                 addTestRunnerLog("Task [" + taskName + "] finished with exit code " + taskRunner.getExitCode());
             addTestRunnerLog("Task [" + taskName + "] output: [" + taskRunner.getOutput() + "]");
             addTestRunnerLog("Uploading test results..." +
-                             (taskRunner.getResultFiles() == null ?
-                              "[no result files]" :
-                              taskRunner.getResultFiles().toString()));
+                    (taskRunner.getResultFiles() == null ?
+                            "[no result files]" :
+                            taskRunner.getResultFiles().toString()));
             String uploadedTo = client.uploadResult(
                     new Client.TaskResult(
                             task.getInstanceId(),
@@ -540,8 +601,8 @@ public class Main {
                         }
                     });
                     resultFiles = files.length > task.getNumOfFilesToUpload() ?
-                                  Arrays.asList(files).subList(0, task.getNumOfFilesToUpload()) :
-                                  Arrays.asList(files);
+                            Arrays.asList(files).subList(0, task.getNumOfFilesToUpload()) :
+                            Arrays.asList(files);
                 } else if (taskResultFilesDir.isFile()) {
                     resultFiles = Arrays.asList(taskResultFilesDir);
                 }

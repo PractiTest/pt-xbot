@@ -1,11 +1,13 @@
 package com.practitest.api;
 
-import org.apache.commons.httpclient.HttpClient;
-import org.apache.commons.httpclient.HttpMethod;
-import org.apache.commons.httpclient.HttpMethodBase;
-import org.apache.commons.httpclient.HttpStatus;
-import org.apache.commons.httpclient.methods.GetMethod;
-import org.apache.commons.httpclient.methods.PostMethod;
+import org.apache.http.HttpResponse;
+import org.apache.http.HttpStatus;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.client.methods.HttpRequestBase;
+import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.impl.conn.ProxySelectorRoutePlanner;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
@@ -13,6 +15,7 @@ import org.w3c.dom.NodeList;
 import javax.xml.parsers.DocumentBuilderFactory;
 import java.io.File;
 import java.math.BigInteger;
+import java.net.ProxySelector;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Date;
@@ -25,8 +28,6 @@ import java.util.logging.Logger;
 public class Client {
     private static final Logger logger = Logger.getLogger(Client.class.getName());
 
-    private static final int DEFAULT_CONNECTION_TIMEOUT = 5000;
-
     private static final DocumentBuilderFactory documentFactory = DocumentBuilderFactory.newInstance();
 
     private String serverURL;
@@ -35,7 +36,7 @@ public class Client {
     private String clientId;
     private String version;
 
-    private HttpClient httpClient;
+    private DefaultHttpClient httpClient;
 
     public Client(String serverURL, String apiKey, String apiSecretKey, String clientId, String version) {
         if (serverURL.endsWith("/") || serverURL.endsWith("\\"))
@@ -48,31 +49,46 @@ public class Client {
         this.version = version;
     }
 
-    public Task nextTask() throws Exception {
+    public synchronized boolean validate() {
+        // TODO: add some dummy action to the server.
+        //       right now we just check that there is no authentication error
+        String url = constructURL("validate").toString();
+        HttpGet getMethod = new HttpGet(url);
+        try {
+            setAuthenticationParameters(getMethod);
+            HttpResponse response = getHTTPClient().execute(getMethod);
+            return response.getStatusLine().getStatusCode() != HttpStatus.SC_INTERNAL_SERVER_ERROR;
+        } catch (Throwable e) {
+            return false;
+        }
+    }
+
+    public synchronized Task nextTask() throws Exception {
         String url = constructURL("next_test").toString();
         Document taskDocument = null;
-        GetMethod getMethod = new GetMethod(url);
+        HttpGet getMethod = new HttpGet(url);
         setAuthenticationParameters(getMethod);
-        try {
-            int httpResult = getHTTPClient().executeMethod(getMethod);
-            if (httpResult == HttpStatus.SC_OK) {
-                logger.info(getMethod.getResponseBodyAsString());
-                taskDocument = documentFactory.newDocumentBuilder().parse(getMethod.getResponseBodyAsStream());
-            } else if (httpResult == HttpStatus.SC_INTERNAL_SERVER_ERROR)
-                generateApiException(getMethod);
-            else
-                logger.severe("Remote call failed: " + getMethod.getStatusLine().toString());
-        } finally {
-            getMethod.releaseConnection();
+        HttpResponse response = getHTTPClient().execute(getMethod);
+        switch (response.getStatusLine().getStatusCode()) {
+            case HttpStatus.SC_OK:
+                logger.fine(response.toString());
+                taskDocument = documentFactory.newDocumentBuilder().parse(response.getEntity().getContent());
+                break;
+            case HttpStatus.SC_INTERNAL_SERVER_ERROR:
+                generateApiException(response);
+                break;
+            default:
+                logger.severe("Remote call failed: " + response.toString());
+                break;
         }
         return parseTaskDocument(taskDocument);
     }
 
-    public String uploadResult(TaskResult result) throws Exception {
+    public synchronized String uploadResult(TaskResult result) throws Exception {
         StringBuilder urlBuilder = constructURL("upload_test_result");
         urlBuilder.append("&request[instance_id]=").append(result.getInstanceId());
         urlBuilder.append("&request[exit_code]=").append(result.getExitCode());
-        PostMethod postMethod = new PostMethod(urlBuilder.toString());
+        HttpPost postMethod = new HttpPost(urlBuilder.toString());
         setAuthenticationParameters(postMethod);
 //        List<Part> parts = new LinkedList<Part>();
         // TODO: re-enable attachments uploading
@@ -86,15 +102,15 @@ public class Client {
 //        }
 //        if (!parts.isEmpty())
 //            postMethod.setRequestEntity(new MultipartRequestEntity(parts.toArray(new Part[parts.size()]), postMethod.getParams()));
-        try {
-            int httpResult = getHTTPClient().executeMethod(postMethod);
-            if (httpResult == HttpStatus.SC_INTERNAL_SERVER_ERROR)
-                generateApiException(postMethod);
-            else if (httpResult != HttpStatus.SC_OK) {
-                logger.severe("Remote call failed: " + postMethod.getStatusLine().toString());
-            }
-        } finally {
-            postMethod.releaseConnection();
+        HttpResponse response = getHTTPClient().execute(postMethod);
+        switch (response.getStatusLine().getStatusCode()) {
+            case HttpStatus.SC_OK:
+                // OK
+            case HttpStatus.SC_INTERNAL_SERVER_ERROR:
+                generateApiException(response);
+                break;
+            default:
+                logger.severe("Remote call failed: " + response.toString());
         }
         return urlBuilder.toString();
     }
@@ -116,12 +132,12 @@ public class Client {
         return task;
     }
 
-    private void generateApiException(HttpMethodBase mm) throws Exception {
-        NodeList errorElements = documentFactory.newDocumentBuilder().parse(mm.getResponseBodyAsStream()).getElementsByTagName("error");
+    private void generateApiException(HttpResponse response) throws Exception {
+        NodeList errorElements = documentFactory.newDocumentBuilder().parse(response.getEntity().getContent()).getElementsByTagName("error");
         if (errorElements.getLength() > 0)
             throw new APIException(errorElements.item(0).getTextContent());
         else
-            throw new Exception("Remote call Failed Error #" + HttpStatus.SC_INTERNAL_SERVER_ERROR + ":" + mm.getResponseBodyAsString());
+            throw new Exception("Remote call failed: " + response.getStatusLine().toString());
     }
 
     private String getInsideText(Element e, String tagName) {
@@ -130,8 +146,11 @@ public class Client {
 
     private synchronized HttpClient getHTTPClient() {
         if (httpClient == null) {
-            httpClient = new HttpClient();
-            httpClient.getHttpConnectionManager().getParams().setConnectionTimeout(DEFAULT_CONNECTION_TIMEOUT);
+            httpClient = new DefaultHttpClient();
+            ProxySelectorRoutePlanner routePlanner = new ProxySelectorRoutePlanner(
+                    httpClient.getConnectionManager().getSchemeRegistry(),
+                    ProxySelector.getDefault());
+            httpClient.setRoutePlanner(routePlanner);
         }
         return httpClient;
     }
@@ -151,13 +170,13 @@ public class Client {
         return String.format("%1$032x", new BigInteger(1, digest.digest()));
     }
 
-    private void setAuthenticationParameters(HttpMethod request) throws NoSuchAlgorithmException {
+    private void setAuthenticationParameters(HttpRequestBase request) throws NoSuchAlgorithmException {
         StringBuilder sb = new StringBuilder();
         long timestamp = new Date().getTime();
         sb.append("custom api_key=").append(apiKey).
                 append(", signature=").append(createSignature(timestamp)).
                 append(", ts=").append(timestamp);
-        request.setRequestHeader("Authorization", sb.toString());
+        request.setHeader("Authorization", sb.toString());
     }
 
     public static class Task {
