@@ -14,9 +14,7 @@ import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.*;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.net.URL;
+import java.net.*;
 import java.security.NoSuchAlgorithmException;
 import java.text.DateFormat;
 import java.util.*;
@@ -152,6 +150,10 @@ public class Main {
                 apiKey = settings.getProperty("api_key", "");
                 apiSecretKey = settings.getProperty("api_secret_key", "");
                 clientId = settings.getProperty("client_id", "");
+                proxyHost = settings.getProperty("proxy_host", "");
+                proxyPort = Integer.parseInt(settings.getProperty("proxy_port", "-1"));
+                proxyUser = settings.getProperty("proxy_user", "");
+                proxyPassword = settings.getProperty("proxy_password", "");
             } catch (IOException ignore) {
             }
         }
@@ -164,6 +166,10 @@ public class Main {
         settings.setProperty("api_key", apiKey);
         settings.setProperty("api_secret_key", apiSecretKey);
         settings.setProperty("client_id", clientId);
+        settings.setProperty("proxy_host", proxyHost);
+        settings.setProperty("proxy_port", String.valueOf(proxyPort));
+        settings.setProperty("proxy_user", proxyUser);
+        settings.setProperty("proxy_password", proxyPassword);
         try {
             settings.store(new FileWriter(new File(System.getProperty("user.dir"), "xbot.properties")),
                     "Please do not change this file manually, it'll be re-written by the application anyway.");
@@ -271,7 +277,7 @@ public class Main {
 
                 out.println("<tr>");
                 out.println("<th><label for='proxy_host'>Proxy Host:</label></th>");
-                out.println("<td><input type='text' id='proxy_host' name='proxy_port' value='" + proxyHost + "' /></td>");
+                out.println("<td><input type='text' id='proxy_host' name='proxy_host' value='" + proxyHost + "' /></td>");
                 out.println("</tr>");
 
                 out.println("<tr>");
@@ -292,7 +298,7 @@ public class Main {
                 out.println("<tr>");
                 out.println("<td colspan='2' class='actions'>");
                 out.println("<a href='/log'>View Log</a>&nbsp;&nbsp;");
-                out.println("<input type='submit' name='validate' value='Validate &rArr;' />");
+                //out.println("<input type='submit' name='validate' value='Validate &rArr;' />");
                 out.println("<input type='submit' name='update' value='Update &rArr;' />");
                 out.println("</td>");
                 out.println("</tr>");
@@ -388,6 +394,26 @@ public class Main {
     private void initializeClient() {
         theClient.set(null);
         if (serverURL.isEmpty() || apiKey.isEmpty() || apiSecretKey.isEmpty() || clientId.isEmpty()) return;
+        if (!proxyHost.isEmpty()) {
+            System.setProperty("http.proxyHost", proxyHost);
+            System.setProperty("https.proxyHost", proxyHost);
+        }
+        if (proxyPort > 0) {
+            System.setProperty("http.proxyPort", String.valueOf(proxyPort));
+            System.setProperty("https.proxyPort", String.valueOf(proxyPort));
+        }
+        if (!proxyUser.isEmpty()) {
+            Authenticator.setDefault(new Authenticator() {
+                @Override
+                protected PasswordAuthentication getPasswordAuthentication() {
+                    return new PasswordAuthentication(proxyUser, proxyPassword.toCharArray());
+                }
+            });
+            System.setProperty("http.proxyUser", proxyUser);
+            System.setProperty("https.proxyPassword", proxyPassword);
+            System.setProperty("https.proxyUser", proxyUser);
+            System.setProperty("https.proxyPassword", proxyPassword);
+        }
         theClient.set(new Client(serverURL, apiKey, apiSecretKey, clientId, VERSION));
         if (trayIcon != null) {
             trayIcon.setImage(trayIconImageReady);

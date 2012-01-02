@@ -1,20 +1,20 @@
 <?xml version="1.0"?>
 <project name="xbot" default="test" xmlns:ivy="antlib:org.apache.ivy.ant">
-    <property name="implementation.version" value="1.0.6" />
-    
+    <property name="implementation.version" value="1.0.6"/>
+
     <!-- The section below is related to Apache Ivy - the tool we use for dependencies -->
-    <property name="ivy.install.version" value="2.2.0" />
+    <property name="ivy.install.version" value="2.2.0"/>
     <condition property="ivy.home" value="${env.IVY_HOME}">
-        <isset property="env.IVY_HOME" />
+        <isset property="env.IVY_HOME"/>
     </condition>
-    <property name="ivy.home" value="${user.home}/.ant" />
-    <property name="ivy.jar.dir" value="${ivy.home}/lib" />
-    <property name="ivy.jar.file" value="${ivy.jar.dir}/ivy.jar" />
+    <property name="ivy.home" value="${user.home}/.ant"/>
+    <property name="ivy.jar.dir" value="${ivy.home}/lib"/>
+    <property name="ivy.jar.file" value="${ivy.jar.dir}/ivy.jar"/>
 
     <target name="download-ivy" unless="offline">
-        <mkdir dir="${ivy.jar.dir}" />
+        <mkdir dir="${ivy.jar.dir}"/>
         <get src="http://repo2.maven.org/maven2/org/apache/ivy/ivy/${ivy.install.version}/ivy-${ivy.install.version}.jar"
-             dest="${ivy.jar.file}" usetimestamp="true" />
+             dest="${ivy.jar.file}" usetimestamp="true"/>
     </target>
 
     <target name="init-ivy" depends="download-ivy">
@@ -25,45 +25,45 @@
         ivy is in at least one of ant's lib dir or the local lib dir.
         -->
         <path id="ivy.lib.path">
-            <fileset dir="${ivy.jar.dir}" includes="*.jar" />
+            <fileset dir="${ivy.jar.dir}" includes="*.jar"/>
         </path>
         <taskdef resource="org/apache/ivy/ant/antlib.xml"
                  uri="antlib:org.apache.ivy.ant"
-                 classpathref="ivy.lib.path" />
-        <ivy:cachepath pathid="compile.classpath" type="jar" conf="test" />
-        <ivy:cachepath pathid="test.classpath" type="jar" conf="test" />
+                 classpathref="ivy.lib.path"/>
+        <ivy:cachepath pathid="compile.classpath" type="jar" conf="test"/>
+        <ivy:cachepath pathid="test.classpath" type="jar" conf="test"/>
     </target>
     <!-- End of Apache Ivy stuff -->
-    
 
-    <property name="lib.dir" value="${basedir}/lib" />
-    <property name="build.dir" value="${basedir}/build" />
-    <property name="build.classes.dir" value="${build.dir}/classes" />
-    <property name="dist.dir" value="${build.dir}/dist" />
+
+    <property name="lib.dir" value="${basedir}/lib"/>
+    <property name="build.dir" value="${basedir}/build"/>
+    <property name="build.classes.dir" value="${build.dir}/classes"/>
+    <property name="dist.dir" value="${build.dir}/dist"/>
 
     <path id="src.path">
         <dirset dir="${basedir}">
-            <include name="src" />
+            <include name="src"/>
             <!-- <include name="test" /> -->
         </dirset>
     </path>
 
     <target name="resolve" depends="init-ivy" description="--> retrieve dependencies with Ivy">
-        <ivy:retrieve />
+        <ivy:retrieve/>
     </target>
 
     <target name="report-dependencies" depends="init-ivy" description="--> create dependencies report with Ivy">
-        <ivy:report />
+        <ivy:report/>
     </target>
 
     <target name="compile" depends="resolve" description="--> compile the source code">
-        <mkdir dir="${build.classes.dir}" />
+        <mkdir dir="${build.classes.dir}"/>
         <javac destdir="${build.classes.dir}" debug="true" encoding="utf8">
-            <classpath refid="compile.classpath" />
-            <src refid="src.path" />
+            <classpath refid="compile.classpath"/>
+            <src refid="src.path"/>
         </javac>
         <copy todir="${build.classes.dir}/images">
-            <fileset dir="images" />
+            <fileset dir="images"/>
         </copy>
     </target>
 
@@ -71,22 +71,22 @@
     </target>
 
     <target name="dist" depends="test">
-        <delete dir="${dist.dir}" />
-        <mkdir dir="${dist.dir}" />
+        <delete dir="${dist.dir}"/>
+        <mkdir dir="${dist.dir}"/>
         <jar
                 destfile="${dist.dir}/${ant.project.name}.jar">
             <manifest>
-                <attribute name="Built-By" value="${user.name}" />
-                <attribute name="Implementation-Version" value="${implementation.version}" />
+                <attribute name="Built-By" value="${user.name}"/>
+                <attribute name="Implementation-Version" value="${implementation.version}"/>
             </manifest>
             <fileset dir="${build.classes.dir}">
-                <exclude name="**/Test*" />
+                <exclude name="**/Test*"/>
             </fileset>
         </jar>
-        <ivy:cachefileset setid="runtime.fileset" type="jar" conf="default" />
+        <ivy:cachefileset setid="runtime.fileset" type="jar" conf="default"/>
         <copy todir="${dist.dir}">
-            <mapper type="flatten" />
-            <fileset refid="runtime.fileset" />
+            <mapper type="flatten"/>
+            <fileset refid="runtime.fileset"/>
         </copy>
         <signjar
                 keystore="etc/keystore.PractiTest"
@@ -94,25 +94,25 @@
                 alias="practitest"
                 storepass="practitest">
             <path>
-                <fileset dir="${dist.dir}" includes="*.jar" />
+                <fileset dir="${dist.dir}" includes="*.jar"/>
             </path>
         </signjar>
     </target>
 
     <target name="uberjar" depends="test">
-      <jar destfile="${build.dir}/${ant.project.name}-all.jar">
-        <manifest>
-          <attribute name="Built-By" value="${user.name}" />
-          <attribute name="Implementation-Version" value="${implementation.version}" />
-          <attribute name="Main-Class" value="com.practitest.xbot.Main" />
-        </manifest>
-        <fileset dir="${build.classes.dir}">
-          <exclude name="**/Test*" />
-        </fileset>
-        <ivy:cachefileset setid="runtime.fileset" type="jar" conf="default" />
-        <!--<zipgroupfileset dir="${lib.dir}">-->
-          <!--<include name="*.jar" />-->
-        <!--</zipgroupfileset>-->
-      </jar>
+        <jar destfile="${build.dir}/${ant.project.name}-all.jar">
+            <manifest>
+                <attribute name="Built-By" value="${user.name}"/>
+                <attribute name="Implementation-Version" value="${implementation.version}"/>
+                <attribute name="Main-Class" value="com.practitest.xbot.Main"/>
+            </manifest>
+            <fileset dir="${build.classes.dir}">
+                <exclude name="**/Test*"/>
+            </fileset>
+            <zipgroupfileset dir="${lib.dir}">
+                <include name="*.jar" />
+                <exclude name="*-sources.jar,*-javadoc.jar" />
+            </zipgroupfileset>
+        </jar>
     </target>
 </project>
