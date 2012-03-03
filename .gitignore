@@ -4,3 +4,4 @@ out
 xbot.properties
 build
 .DS_Store
+*.un~
