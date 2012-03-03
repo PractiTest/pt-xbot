@@ -139,7 +139,7 @@ public class Client {
     private StringBuilder constructURL(String command) {
         StringBuilder sb = new StringBuilder();
         return sb.append(serverURL).
-                append("/api/automated_tests/").append(command).append(".xml?clientId=").append(clientId).
+                append("/api/automated_tests/").append(command).append(".xml?client_id=").append(clientId).
                 append("&xbot_version=").append(version);
     }
 
