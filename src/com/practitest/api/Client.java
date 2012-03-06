@@ -6,6 +6,9 @@ import org.apache.commons.httpclient.HttpMethodBase;
 import org.apache.commons.httpclient.HttpStatus;
 import org.apache.commons.httpclient.methods.GetMethod;
 import org.apache.commons.httpclient.methods.PostMethod;
+import org.apache.commons.httpclient.methods.multipart.FilePart;
+import org.apache.commons.httpclient.methods.multipart.MultipartRequestEntity;
+import org.apache.commons.httpclient.methods.multipart.Part;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
@@ -16,6 +19,7 @@ import java.math.BigInteger;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Date;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.logging.Logger;
 
@@ -74,18 +78,15 @@ public class Client {
         urlBuilder.append("&request[exit_code]=").append(result.getExitCode());
         PostMethod postMethod = new PostMethod(urlBuilder.toString());
         setAuthenticationParameters(postMethod);
-//        List<Part> parts = new LinkedList<Part>();
-        // TODO: re-enable attachments uploading
-        //       there is a bug in rails 3.0.x: we cannot post both XML and file attachments.
-        //       it's fixed in 3.1
-//        if (result.getFiles() != null && !result.getFiles().isEmpty()) {
-//            for (int i = 0; i < result.getFiles().size(); ++i) {
-//                File file = result.getFiles().get(i);
-//                parts.add(new FilePart("result[" + file.getName() + "]", file));
-//            }
-//        }
-//        if (!parts.isEmpty())
-//            postMethod.setRequestEntity(new MultipartRequestEntity(parts.toArray(new Part[parts.size()]), postMethod.getParams()));
+        if (result.getFiles() != null && !result.getFiles().isEmpty()) {
+            List<Part> parts = new LinkedList<Part>();
+            for (File file : result.getFiles())
+                parts.add(new FilePart("result[" + file.getName() + "]", file));
+            postMethod.setRequestEntity(new MultipartRequestEntity(
+                    parts.toArray(new Part[parts.size()]),
+                    postMethod.getParams()
+            ));
+        }
         try {
             int httpResult = getHTTPClient().executeMethod(postMethod);
             if (httpResult == HttpStatus.SC_INTERNAL_SERVER_ERROR)
