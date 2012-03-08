@@ -16,6 +16,7 @@ import org.w3c.dom.NodeList;
 import javax.xml.parsers.DocumentBuilderFactory;
 import java.io.File;
 import java.math.BigInteger;
+import java.net.URLEncoder;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Date;
@@ -76,12 +77,13 @@ public class Client {
         StringBuilder urlBuilder = constructURL("upload_test_result");
         urlBuilder.append("&request[instance_id]=").append(result.getInstanceId());
         urlBuilder.append("&request[exit_code]=").append(result.getExitCode());
+        urlBuilder.append("&request[result]=").append(URLEncoder.encode(result.getOutput(), "UTF-8"));
         PostMethod postMethod = new PostMethod(urlBuilder.toString());
         setAuthenticationParameters(postMethod);
         if (result.getFiles() != null && !result.getFiles().isEmpty()) {
             List<Part> parts = new LinkedList<Part>();
             for (File file : result.getFiles())
-                parts.add(new FilePart("result[" + file.getName() + "]", file));
+                parts.add(new FilePart("result_files[" + file.getName() + "]", file));
             postMethod.setRequestEntity(new MultipartRequestEntity(
                     parts.toArray(new Part[parts.size()]),
                     postMethod.getParams()
@@ -240,7 +242,11 @@ public class Client {
         }
 
         public String getOutput() {
-            return output;
+            return getOutput(255);
+        }
+        
+        public String getOutput(int maxLength) {
+            return output.length() > maxLength ? output.substring(0, maxLength - 6) + "<...>" : output;
         }
     }
 }
