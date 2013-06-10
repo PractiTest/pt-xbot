@@ -315,10 +315,8 @@ public class Main {
         theClient.set(null);
         if (serverURL.isEmpty() || apiKey.isEmpty() || apiSecretKey.isEmpty() || clientId.isEmpty()) return;
         theClient.set(new Client(serverURL, apiKey, apiSecretKey, clientId, VERSION));
-        if (trayIcon != null) {
-            trayIcon.setImage(trayIconImageReady);
-            trayIcon.displayMessage(XBOT_TRAY_CAPTION, "PractiTest xBot is ready", TrayIcon.MessageType.INFO);
-        }
+        setTrayStatus(trayIconImageReady, "PractiTest xBot is ready",
+                      TrayIcon.MessageType.INFO);
     }
 
     private void initializeScheduler() {
@@ -345,13 +343,14 @@ public class Main {
             Client.Task task = client.nextTask();
             if (task == null) {
                 addTestRunnerLog("There is no test to run in the queue");
-                trayIcon.setImage(trayIconImageReady);
+                setTrayStatus(trayIconImageReady, "PractiTest xBot is ready",
+                              TrayIcon.MessageType.INFO);
                 return;
             }
             String taskName = task.getDescription() + " [" + task.getPathToTestApplication() + "]";
             addTestRunnerLog("Running " + taskName);
-            trayIcon.setImage(trayIconImageRunning);
-            trayIcon.displayMessage(XBOT_TRAY_CAPTION, "PractiTest xBot is running: " + taskName, TrayIcon.MessageType.INFO);
+            setTrayStatus(trayIconImageRunning, "PractiTest xBot is running: " + taskName,
+                          TrayIcon.MessageType.INFO);
 
             TaskRunner taskRunner = new TaskRunner(task);
             Thread taskRunnerThread = new Thread(taskRunner);
@@ -374,8 +373,7 @@ public class Main {
                             taskRunner.getResultFiles(),
                             taskRunner.getOutput()));
             addTestRunnerLog("Finished uploading test results [" + uploadedTo + "].");
-            trayIcon.setImage(trayIconImageReady);
-            trayIcon.displayMessage(XBOT_TRAY_CAPTION, "PractiTest xBot finished running task, ready for the next one", TrayIcon.MessageType.INFO);
+            setTrayStatus(trayIconImageReady, "PractiTest xBot finished running task, ready for the next one", TrayIcon.MessageType.INFO);
         } catch (IOException e) {
             errorDisplay(e.getMessage(), null);
         } catch (NoSuchAlgorithmException e) {
@@ -391,9 +389,19 @@ public class Main {
         }
     }
 
+  private void setTrayStatus(Image image, String message, TrayIcon.MessageType messageType) {
+    try {
+      if (trayIcon != null) {
+        trayIcon.setImage(image);
+        trayIcon.displayMessage(XBOT_TRAY_CAPTION, message, messageType);
+      }
+    } catch (Throwable ignore) {
+    }
+  }
+
     private void errorDisplay(String message, String error_prefix) {
-        trayIcon.setImage(trayIconImageError);
-        trayIcon.displayMessage(XBOT_TRAY_CAPTION, "PractiTest xBot failed to run task: " + message, TrayIcon.MessageType.ERROR);
+      setTrayStatus(trayIconImageError, "PractiTest xBot failed to run task: " + message,
+                    TrayIcon.MessageType.ERROR);
         // the default is the communication error
         if (error_prefix == null)
             error_prefix = "Error occurred during communication with PractiTest server: ";
