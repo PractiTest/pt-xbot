@@ -439,7 +439,7 @@ public class Main {
         private boolean timedOut = false;
         private int exitCode = -1;
         private java.util.List<File> resultFiles;
-        private String output;
+        private String output = "";
 
         public TaskRunner(Client.Task task) {
             this.task = task;
@@ -481,6 +481,7 @@ public class Main {
                 logger.info("Running command [" + parameters.toString() + "]");
                 addTestRunnerLog("Running command [" + parameters.toString() + "]");
                 File workingDirectory = new File(parameters.get(0)).getParentFile();
+                logger.info("Working directory: [" + workingDirectory.getAbsolutePath() + "]");
                 ProcessBuilder processBuilder = new ProcessBuilder(parameters);
                 processBuilder.directory(workingDirectory);
                 processBuilder.redirectErrorStream(true);
@@ -500,14 +501,11 @@ public class Main {
                 addTestRunnerLog("Timeout expired for [" + task.getDescription() + "]");
                 logger.warning("Timeout expired for [" + task.getDescription() + "]");
                 timedOut = true;
-                if (process != null)
-                    process.destroy();
+                process.destroy();
             } catch (IOException e) {
                 // some other error
                 addTestRunnerLog("IO exception while running [" + task.getDescription() + "]: " + e.getMessage());
                 logger.warning("IO exception while running [" + task.getDescription() + "]: " + e.getMessage());
-                if (process != null)
-                    process.destroy();
             } finally {
                 // If the process returns within the timeout period, we have to stop the interrupter
                 // so that it does not unexpectedly interrupt some other code later.
@@ -522,6 +520,7 @@ public class Main {
             }
 
             if (captureFiles) {
+              logger.info("Capturing files from [" + task.getPathToTestResults() + "]");
                 File taskResultFilesDir = new File(task.getPathToTestResults());
                 if (taskResultFilesDir.isDirectory()) {
                     File[] files = taskResultFilesDir.listFiles(new FileFilter() {
