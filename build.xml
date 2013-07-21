@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <project name="xbot" default="test">
-  <property name="implementation.version" value="1.1.0" />
+  <property name="implementation.version" value="1.1.1" />
 
   <property name="lib.dir" value="${basedir}/lib" />
   <property name="build.dir" value="${basedir}/build" />
@@ -22,9 +22,17 @@
     </dirset>
   </path>
 
+  <target name="clean">
+    <delete dir="${build.classes.dir}" />
+  </target>
+
   <target name="compile">
     <mkdir dir="${build.classes.dir}" />
-    <javac destdir="${build.classes.dir}" debug="true" encoding="utf8">
+    <javac destdir="${build.classes.dir}"
+           debug="true"
+           encoding="utf8"
+           source="1.6"
+           target="1.6">
       <classpath refid="compile.path" />
       <src refid="src.path" />
     </javac>
@@ -36,7 +44,7 @@
   <target name="test" depends="compile">
   </target>
 
-  <target name="uberjar" depends="test">
+  <target name="uberjar" depends="clean,test">
     <jar destfile="${build.dir}/${ant.project.name}-all.jar">
       <manifest>
         <attribute name="Built-By" value="${user.name}" />
