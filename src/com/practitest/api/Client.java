@@ -40,11 +40,14 @@ public class Client {
   private String apiKey;
   private String apiSecretKey;
   private String clientId;
+  private String proxyHost;
+  private String proxyPort;
   private String version;
 
   private HttpClient httpClient;
 
-  public Client(String serverURL, String apiKey, String apiSecretKey, String clientId, String version) {
+  public Client(String serverURL, String apiKey, String apiSecretKey, String clientId,
+                String proxyHost, String proxyPort, String version) {
     if (serverURL.endsWith("/") || serverURL.endsWith("\\"))
       this.serverURL = serverURL.substring(0, serverURL.length() - 1);
     else
@@ -52,6 +55,8 @@ public class Client {
     this.apiKey = apiKey;
     this.apiSecretKey = apiSecretKey;
     this.clientId = clientId;
+    this.proxyHost = proxyHost;
+    this.proxyPort = proxyPort;
     this.version = version;
   }
 
@@ -122,6 +127,9 @@ public class Client {
   private synchronized HttpClient getHTTPClient() {
     if (httpClient == null) {
       httpClient = new HttpClient();
+      if (!proxyHost.isEmpty()) {
+        httpClient.getHostConfiguration().setProxy(proxyHost, Integer.parseInt(proxyPort));
+      }
       httpClient.getHttpConnectionManager().getParams().setConnectionTimeout(DEFAULT_CONNECTION_TIMEOUT);
     }
     return httpClient;
