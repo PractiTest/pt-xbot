@@ -72,6 +72,8 @@ public class Main {
   private String clientId = "";
   private String proxyHost = "";
   private String proxyPort = "";
+  private String proxyUser = "";
+  private String proxyPassword = "";
 
   public Main(int listeningPort, boolean noTrayIcon) throws Exception {
     logger.info("Running v" + VERSION);
@@ -152,6 +154,8 @@ public class Main {
         clientId = settings.getProperty("client_id", "");
         proxyHost = settings.getProperty("proxy_host", "");
         proxyPort = settings.getProperty("proxy_port", "");
+        proxyUser = settings.getProperty("proxy_user", "");
+        proxyPassword = settings.getProperty("proxy_password", "");
       } catch (IOException ignore) {
       }
     }
@@ -166,6 +170,8 @@ public class Main {
     settings.setProperty("client_id", clientId);
     settings.setProperty("proxy_host", proxyHost);
     settings.setProperty("proxy_port", proxyPort);
+    settings.setProperty("proxy_user", proxyUser);
+    settings.setProperty("proxy_password", proxyPassword);
     try {
       settings.store(new FileWriter(new File(System.getProperty("user.dir"), "xbot.properties")),
               "Please do not change this file manually, it'll be re-written by the application anyway.");
@@ -220,6 +226,14 @@ public class Main {
           out.println("<th style=\"text-align:right; width:30%;\"><label for=\"proxy_port\">Proxy port:</label></th>");
           out.println("<td style=\"text-align:left; width:70%;\"><input type=\"text\" id=\"proxy_port\" name=\"proxy_port\" value=\"" + proxyPort + "\" /></td>");
           out.println("</tr>");
+          out.println("<tr>");
+          out.println("<th style=\"text-align:right; width:30%;\"><label for=\"proxy_user\">Proxy username:</label></th>");
+          out.println("<td style=\"text-align:left; width:70%;\"><input type=\"text\" id=\"proxy_user\" name=\"proxy_user\" value=\"" + proxyUser + "\" /></td>");
+          out.println("</tr>");
+          out.println("<tr>");
+          out.println("<th style=\"text-align:right; width:30%;\"><label for=\"proxy_password\">Proxy password:</label></th>");
+          out.println("<td style=\"text-align:left; width:70%;\"><input type=\"text\" id=\"proxy_password\" name=\"proxy_password\" value=\"" + proxyPassword + "\" /></td>");
+          out.println("</tr>");
 
           out.println("<tr>  <td colspan=\"2\">");
           out.println("<a href=\"/log\">View Log</a> &nbsp; &nbsp;");
@@ -236,6 +250,8 @@ public class Main {
           clientId = request.getParameter("client_id");
           proxyHost = request.getParameter("proxy_host");
           proxyPort = request.getParameter("proxy_port");
+          proxyUser = request.getParameter("proxy_user");
+          proxyPassword = request.getParameter("proxy_password");
           saveSettings();
           initializeClient();
           response.sendRedirect("/preferences");
@@ -331,7 +347,7 @@ public class Main {
   private void initializeClient() {
     theClient.set(null);
     if (serverURL.isEmpty() || apiKey.isEmpty() || apiSecretKey.isEmpty() || clientId.isEmpty()) return;
-    theClient.set(new Client(serverURL, apiKey, apiSecretKey, clientId, proxyHost, proxyPort, VERSION));
+    theClient.set(new Client(serverURL, apiKey, apiSecretKey, clientId, proxyHost, proxyPort, proxyUser, proxyPassword, VERSION));
     setTrayStatus(trayIconImageReady, "PractiTest xBot is ready",
             TrayIcon.MessageType.INFO);
   }

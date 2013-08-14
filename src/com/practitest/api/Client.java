@@ -1,9 +1,7 @@
 package com.practitest.api;
 
-import org.apache.commons.httpclient.HttpClient;
-import org.apache.commons.httpclient.HttpMethod;
-import org.apache.commons.httpclient.HttpMethodBase;
-import org.apache.commons.httpclient.HttpStatus;
+import org.apache.commons.httpclient.*;
+import org.apache.commons.httpclient.auth.AuthScope;
 import org.apache.commons.httpclient.methods.GetMethod;
 import org.apache.commons.httpclient.methods.PostMethod;
 import org.apache.commons.httpclient.methods.multipart.FilePart;
@@ -42,12 +40,14 @@ public class Client {
   private String clientId;
   private String proxyHost;
   private String proxyPort;
+  private String proxyUser;
+  private String proxyPassword;
   private String version;
 
   private HttpClient httpClient;
 
   public Client(String serverURL, String apiKey, String apiSecretKey, String clientId,
-                String proxyHost, String proxyPort, String version) {
+                String proxyHost, String proxyPort, String proxyUser, String proxyPassword, String version) {
     if (serverURL.endsWith("/") || serverURL.endsWith("\\"))
       this.serverURL = serverURL.substring(0, serverURL.length() - 1);
     else
@@ -57,6 +57,8 @@ public class Client {
     this.clientId = clientId;
     this.proxyHost = proxyHost;
     this.proxyPort = proxyPort;
+    this.proxyUser = proxyUser;
+    this.proxyPassword = proxyPassword;
     this.version = version;
   }
 
@@ -129,6 +131,10 @@ public class Client {
       httpClient = new HttpClient();
       if (!proxyHost.isEmpty()) {
         httpClient.getHostConfiguration().setProxy(proxyHost, Integer.parseInt(proxyPort));
+      }
+      if (!proxyUser.isEmpty()) {
+        NTCredentials credentials = new NTCredentials(proxyUser, proxyPassword, "", "");
+        httpClient.getState().setProxyCredentials(AuthScope.ANY, credentials);
       }
       httpClient.getHttpConnectionManager().getParams().setConnectionTimeout(DEFAULT_CONNECTION_TIMEOUT);
     }
