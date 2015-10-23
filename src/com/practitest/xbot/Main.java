@@ -539,6 +539,10 @@ public class Main {
         // some other error
         addTestRunnerLog("IO exception while running [" + task.getDescription() + "]: " + e.getMessage());
         logger.warning("IO exception while running [" + task.getDescription() + "]: " + e.getMessage());
+      } catch (Throwable e) {
+        // some other non IO-related error
+        addTestRunnerLog("Exception while running [" + task.getDescription() + "]: " + e.getMessage());
+        logger.warning("Exception while running [" + task.getDescription() + "]: " + e.getMessage());
       } finally {
         // If the process returns within the timeout period, we have to stop the interrupter
         // so that it does not unexpectedly interrupt some other code later.
