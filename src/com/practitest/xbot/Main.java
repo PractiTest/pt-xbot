@@ -148,14 +148,14 @@ public class Main {
       try {
         Properties settings = new Properties();
         settings.load(new FileReader(settingsFile));
-        serverURL = settings.getProperty("server_url", "");
-        apiKey = settings.getProperty("api_key", "");
-        apiSecretKey = settings.getProperty("api_secret_key", "");
-        clientId = settings.getProperty("client_id", "");
-        proxyHost = settings.getProperty("proxy_host", "");
-        proxyPort = settings.getProperty("proxy_port", "");
-        proxyUser = settings.getProperty("proxy_user", "");
-        proxyPassword = settings.getProperty("proxy_password", "");
+        serverURL = settings.getProperty("server_url", "").trim();
+        apiKey = settings.getProperty("api_key", "").trim();
+        apiSecretKey = settings.getProperty("api_secret_key", "").trim();
+        clientId = settings.getProperty("client_id", "").trim();
+        proxyHost = settings.getProperty("proxy_host", "").trim();
+        proxyPort = settings.getProperty("proxy_port", "").trim();
+        proxyUser = settings.getProperty("proxy_user", "").trim();
+        proxyPassword = settings.getProperty("proxy_password", "").trim();
       } catch (IOException ignore) {
       }
     }
