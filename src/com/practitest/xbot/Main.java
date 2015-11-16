@@ -359,9 +359,9 @@ public class Main {
         logger.info("TestRunner is awake");
         addTestRunnerLog("TestRunner is awake getting next test to run");
         Client client = theClient.get();
-        if (client != null)
-          runScript(client);
-        else { // client is null
+        if (client != null) {
+          while (runScript(client)) ;
+        } else { // client is null
           logger.warning("PractiTest client is not yet configured");
           addTestRunnerLog("PractiTest client is not yet configured");
         }
@@ -371,14 +371,14 @@ public class Main {
     }, TEST_RUNNER_INITIAL_DELAY, TEST_RUNNER_DELAY, TimeUnit.SECONDS);
   }
 
-  private void runScript(Client client) {
+  private boolean runScript(Client client) {
     try {
       Client.Task task = client.nextTask();
       if (task == null) {
         addTestRunnerLog("There is no test to run in the queue");
         setTrayStatus(trayIconImageReady, "PractiTest xBot is ready",
                 TrayIcon.MessageType.INFO);
-        return;
+        return false;
       }
       String taskName = task.getDescription() + " [" + task.getPathToTestApplication() + "]";
       addTestRunnerLog("Running " + taskName);
@@ -420,6 +420,7 @@ public class Main {
     } catch (Throwable e) {
       errorDisplay(e.getMessage(), "Unhandled exception: ");
     }
+    return true;
   }
 
   private void setTrayStatus(Image image, String message, TrayIcon.MessageType messageType) {
