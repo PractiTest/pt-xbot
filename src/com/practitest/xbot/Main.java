@@ -66,8 +66,7 @@ public class Main {
   private ScheduledFuture<?> testRunner;
   private final Deque<String> testRunnerLog = new LinkedList<String>();
 
-  private String apiKey = "";
-  private String apiSecretKey = "";
+  private String apiToken = "";
   private String serverURL = "";
   private String clientId = "";
   private String proxyHost = "";
@@ -84,7 +83,7 @@ public class Main {
       exitCondition = lock.newCondition();
       initializeHTTPListener();
       addTestRunnerLog("Running version " + VERSION);
-      addTestRunnerLog("Loading with API Key: " + apiKey + " and serverURL: " + serverURL);
+      addTestRunnerLog("Loading with API Key: " + apiToken + " and serverURL: " + serverURL);
       initializeClient();
       initializeScheduler();
       if (!noTrayIcon) {
@@ -149,8 +148,10 @@ public class Main {
         Properties settings = new Properties();
         settings.load(new FileReader(settingsFile));
         serverURL = settings.getProperty("server_url", "").trim();
-        apiKey = settings.getProperty("api_key", "").trim();
-        apiSecretKey = settings.getProperty("api_secret_key", "").trim();
+        if(serverURL.equals("")){
+          serverURL = "https://prod.practitest.com";
+        }
+        apiToken = settings.getProperty("api_token", "").trim();
         clientId = settings.getProperty("client_id", "").trim();
         proxyHost = settings.getProperty("proxy_host", "").trim();
         proxyPort = settings.getProperty("proxy_port", "").trim();
@@ -165,8 +166,7 @@ public class Main {
     // overwrites the xbot.properties!
     Properties settings = new Properties();
     settings.setProperty("server_url", serverURL);
-    settings.setProperty("api_key", apiKey);
-    settings.setProperty("api_secret_key", apiSecretKey);
+    settings.setProperty("api_key", apiToken);
     settings.setProperty("client_id", clientId);
     settings.setProperty("proxy_host", proxyHost);
     settings.setProperty("proxy_port", proxyPort);
@@ -199,25 +199,22 @@ public class Main {
           out.println("<html><head><title>PractiTest xBot preferences</title></head>");
           out.println("<body><form method=\"POST\" action=\"/set_preferences\">");
           out.println("<table style=\"width:80%;\">");
+          out.println("<tbody>");
           out.println("<caption>PractiTest xBot configuration</caption>");
           out.println("<tr>");
           out.println("<th style=\"text-align:right; width:30%;\"><label for=\"server_url\">PractiTest URL:</label></th>");
           out.println("<td style=\"text-align:left; width:70%;\"><input type=\"text\" id=\"server_url\" name=\"server_url\" value=\"" + serverURL + "\" /></td>");
           out.println("</tr>");
           out.println("<tr>");
-          out.println("<th style=\"text-align:right; width:30%;\"><label for=\"api_key\">API Key:</label></th>");
-          out.println("<td style=\"text-align:left; width:70%;\"><input type=\"text\" id=\"api_key\" name=\"api_key\" value=\"" + apiKey + "\" /></td>");
+          out.println("<th style=\"text-align:right; width:30%;\"><label for=\"api_key\">API Token:</label></th>");
+          out.println("<td style=\"text-align:left; width:70%;\"><input type=\"text\" id=\"api_token\" name=\"api_token\" value=\"" + apiToken + "\" /></td>");
           out.println("</tr>");
-          out.println("<tr>");
-          out.println("<th style=\"text-align:right; width:30%;\"><label for=\"api_secret_key\">API Secret Key:</label></th>");
-          out.println("<td style=\"text-align:left; width:70%;\"><input type=\"text\" id=\"api_secret_key\" name=\"api_secret_key\" value=\"" + apiSecretKey + "\" /></td>");
-          out.println("</tr>");
-
           out.println("<tr>");
           out.println("<th style=\"text-align:right; width:30%;\"><label for=\"client_id\">Client ID:</label></th>");
           out.println("<td style=\"text-align:left; width:70%;\"><input type=\"text\" id=\"client_id\" name=\"client_id\" value=\"" + clientId + "\" /></td>");
           out.println("</tr>");
-
+          out.println("</tbody>");
+          out.println("<tbody id=\"proxy_settings\" style=\"display:none\">");
           out.println("<tr>");
           out.println("<th style=\"text-align:right; width:30%;\"><label for=\"proxy_host\">Proxy host:</label></th>");
           out.println("<td style=\"text-align:left; width:70%;\"><input type=\"text\" id=\"proxy_host\" name=\"proxy_host\" value=\"" + proxyHost + "\" /></td>");
@@ -234,9 +231,11 @@ public class Main {
           out.println("<th style=\"text-align:right; width:30%;\"><label for=\"proxy_password\">Proxy password:</label></th>");
           out.println("<td style=\"text-align:left; width:70%;\"><input type=\"text\" id=\"proxy_password\" name=\"proxy_password\" value=\"" + proxyPassword + "\" /></td>");
           out.println("</tr>");
+          out.println("</tbody>");
 
           out.println("<tr>  <td colspan=\"2\">");
           out.println("<a href=\"/log\">View Log</a> &nbsp; &nbsp;");
+          out.println("<a href=\"#\" onclick=\" document.getElementById('proxy_settings').style.display = 'table-row-group' \">Configure Proxy</a> &nbsp; &nbsp;");
           out.println("<!-- build=1.01 -->");
           out.println("<input type=\"submit\" value=\"Update &rArr;\" />");
           out.println("</td>  </tr>");
@@ -245,8 +244,7 @@ public class Main {
           ((Request) request).setHandled(true);
         } else if (target.equals("/set_preferences")) {
           serverURL = request.getParameter("server_url");
-          apiKey = request.getParameter("api_key");
-          apiSecretKey = request.getParameter("api_secret_key");
+          apiToken = request.getParameter("api_token");
           clientId = request.getParameter("client_id");
           proxyHost = request.getParameter("proxy_host");
           proxyPort = request.getParameter("proxy_port");
@@ -346,8 +344,8 @@ public class Main {
 
   private void initializeClient() {
     theClient.set(null);
-    if (serverURL.isEmpty() || apiKey.isEmpty() || apiSecretKey.isEmpty() || clientId.isEmpty()) return;
-    theClient.set(new Client(serverURL, apiKey, apiSecretKey, clientId, proxyHost, proxyPort, proxyUser, proxyPassword, VERSION));
+    if (serverURL.isEmpty() || apiToken.isEmpty() || clientId.isEmpty()) return;
+    theClient.set(new Client(serverURL, apiToken, clientId, proxyHost, proxyPort, proxyUser, proxyPassword, VERSION));
     setTrayStatus(trayIconImageReady, "PractiTest xBot is ready",
             TrayIcon.MessageType.INFO);
   }
