@@ -52,8 +52,7 @@ public class Client {
   private static final JsonFactory jsonFactory = new JsonFactory();
 
   private String serverURL;
-  private String apiKey;
-  private String apiSecretKey;
+  private String apiToken;
   private String clientId;
   private String proxyHost;
   private String proxyPort;
@@ -63,14 +62,13 @@ public class Client {
 
   private HttpClient httpClient;
 
-  public Client(String serverURL, String apiKey, String apiSecretKey, String clientId,
+  public Client(String serverURL, String apiToken, String clientId,
                 String proxyHost, String proxyPort, String proxyUser, String proxyPassword, String version) {
     if (serverURL.endsWith("/") || serverURL.endsWith("\\"))
       this.serverURL = serverURL.substring(0, serverURL.length() - 1);
     else
       this.serverURL = serverURL;
-    this.apiKey = apiKey;
-    this.apiSecretKey = apiSecretKey;
+    this.apiToken = apiToken;
     this.clientId = clientId;
     this.proxyHost = proxyHost;
     this.proxyPort = proxyPort;
@@ -162,26 +160,18 @@ public class Client {
   }
 
   private StringBuilder constructURL(String command) {
-    StringBuilder sb = new StringBuilder();
-    return sb.append(serverURL).
+    StringBuilder sb = new StringBuilder();  
+    StringBuilder res = sb.append(serverURL).
       append("/api/automated_tests/").append(command).append(".json?client_id=").append(clientId).
       append("&xbot_version=").append(version);
+    return res;
   }
 
-  private String createSignature(long timestamp) throws NoSuchAlgorithmException {
-    StringBuilder sb = new StringBuilder();
-    sb.append(apiKey).append(apiSecretKey).append(timestamp);
-    MessageDigest digest = MessageDigest.getInstance("MD5");
-    digest.update(sb.toString().getBytes());
-    return String.format("%1$032x", new BigInteger(1, digest.digest()));
-  }
 
   private void setAuthenticationParameters(HttpMethod request) throws NoSuchAlgorithmException {
     StringBuilder sb = new StringBuilder();
     long timestamp = new Date().getTime();
-    sb.append("custom api_key=").append(apiKey).
-      append(", signature=").append(createSignature(timestamp)).
-      append(", ts=").append(timestamp);
+    sb.append("custom api_token=").append(apiToken);
     request.setRequestHeader("Authorization", sb.toString());
   }
 
