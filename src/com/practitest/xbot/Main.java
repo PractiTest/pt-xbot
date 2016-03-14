@@ -149,6 +149,7 @@ public class Main {
         settings.load(new FileReader(settingsFile));
         serverURL = settings.getProperty("server_url", "").trim();
         if(serverURL.equals("")){
+          
           serverURL = "https://prod.practitest.com";
         }
         apiToken = settings.getProperty("api_token", "").trim();
@@ -159,6 +160,9 @@ public class Main {
         proxyPassword = settings.getProperty("proxy_password", "").trim();
       } catch (IOException ignore) {
       }
+    }
+    else{
+      serverURL = "https://prod.practitest.com";
     }
   }
 
@@ -197,49 +201,56 @@ public class Main {
           response.setStatus(HttpServletResponse.SC_OK);
           PrintWriter out = response.getWriter();
           out.println("<html><head><title>PractiTest xBot preferences</title></head>");
-          out.println("<body><form method=\"POST\" action=\"/set_preferences\">");
-          out.println("<table style=\"width:80%;\">");
-          out.println("<tbody>");
-          out.println("<caption>PractiTest xBot configuration</caption>");
-          out.println("<tr>");
-          out.println("<th style=\"text-align:right; width:30%;\"><label for=\"server_url\">PractiTest URL:</label></th>");
-          out.println("<td style=\"text-align:left; width:70%;\"><input type=\"text\" id=\"server_url\" name=\"server_url\" value=\"" + serverURL + "\" /></td>");
-          out.println("</tr>");
-          out.println("<tr>");
-          out.println("<th style=\"text-align:right; width:30%;\"><label for=\"api_key\">API Token:</label></th>");
-          out.println("<td style=\"text-align:left; width:70%;\"><input type=\"text\" id=\"api_token\" name=\"api_token\" value=\"" + apiToken + "\" /></td>");
-          out.println("</tr>");
-          out.println("<tr>");
-          out.println("<th style=\"text-align:right; width:30%;\"><label for=\"client_id\">Client ID:</label></th>");
-          out.println("<td style=\"text-align:left; width:70%;\"><input type=\"text\" id=\"client_id\" name=\"client_id\" value=\"" + clientId + "\" /></td>");
-          out.println("</tr>");
-          out.println("</tbody>");
-          out.println("<tbody id=\"proxy_settings\" style=\"display:none\">");
-          out.println("<tr>");
-          out.println("<th style=\"text-align:right; width:30%;\"><label for=\"proxy_host\">Proxy host:</label></th>");
-          out.println("<td style=\"text-align:left; width:70%;\"><input type=\"text\" id=\"proxy_host\" name=\"proxy_host\" value=\"" + proxyHost + "\" /></td>");
-          out.println("</tr>");
-          out.println("<tr>");
-          out.println("<th style=\"text-align:right; width:30%;\"><label for=\"proxy_port\">Proxy port:</label></th>");
-          out.println("<td style=\"text-align:left; width:70%;\"><input type=\"text\" id=\"proxy_port\" name=\"proxy_port\" value=\"" + proxyPort + "\" /></td>");
-          out.println("</tr>");
-          out.println("<tr>");
-          out.println("<th style=\"text-align:right; width:30%;\"><label for=\"proxy_user\">Proxy username:</label></th>");
-          out.println("<td style=\"text-align:left; width:70%;\"><input type=\"text\" id=\"proxy_user\" name=\"proxy_user\" value=\"" + proxyUser + "\" /></td>");
-          out.println("</tr>");
-          out.println("<tr>");
-          out.println("<th style=\"text-align:right; width:30%;\"><label for=\"proxy_password\">Proxy password:</label></th>");
-          out.println("<td style=\"text-align:left; width:70%;\"><input type=\"text\" id=\"proxy_password\" name=\"proxy_password\" value=\"" + proxyPassword + "\" /></td>");
-          out.println("</tr>");
-          out.println("</tbody>");
-
-          out.println("<tr>  <td colspan=\"2\">");
+          out.println("<link rel=\"stylesheet\" href=\"https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css\" crossorigin=\"anonymous\"/>");
+          out.println("<body><form method=\"POST\" action=\"/set_preferences\" class=\"form-horizontal\">");
+          out.println("<row><h1 class=\"text-center\">PractiTest xBot configuration</h1></row>");
+          out.println("<div class=\"form-group\">");
+          out.println("<label for=\"server_url\" class=\"col-sm-2 control-label\">PractiTest URL:</label>");
+          out.println("<div class=\"col-sm-10\">");
+          out.println("<input class=\"form-control\" type=\"text\" id=\"server_url\" name=\"server_url\"  value=\"" + serverURL + "\" />");
+          out.println("</div>");
+          out.println("</div>");
+          out.println("<div class=\"form-group\">");
+          out.println("<label for=\"api_key\" class=\"col-sm-2 control-label\">API Token:</label>");
+          out.println("<div class=\"col-sm-10\">");
+          out.println("<input class=\"form-control\" type=\"text\" id=\"api_token\" name=\"api_token\" value=\"" + apiToken + "\" />");
+          out.println("</div>");
+          out.println("</div>");
+          out.println("<div class=\"form-group\">");
+          out.println("<label for=\"client_id\" class=\"col-sm-2 control-label\">Client ID:</label>");
+          out.println("<div class=\"col-sm-10\">");
+          out.println("<input class=\"form-control\" type=\"text\" id=\"client_id\" name=\"client_id\" value=\"" + clientId + "\" />");
+          out.println("</div>");
+          out.println("</div>");
+          out.println("<div id=\"proxy_settings\" style=\"display:none\">");
+          out.println("<div class=\"form-group\">");
+          out.println("<label for=\"proxy_host\" class=\"col-sm-2 control-label\">Proxy host:</label>");
+          out.println("<div class=\"col-sm-10\">");
+          out.println("<input class=\"form-control\" type=\"text\" id=\"proxy_host\" name=\"proxy_host\" value=\"" + proxyHost + "\" />");
+          out.println("</div>");
+          out.println("</div>");
+          out.println("<div class=\"form-group\">");
+          out.println("<label for=\"proxy_port\" class=\"col-sm-2 control-label\">Proxy port:</label>");
+          out.println("<div class=\"col-sm-10\">");
+          out.println("<input class=\"form-control\" type=\"text\" id=\"proxy_port\" name=\"proxy_port\" value=\"" + proxyPort + "\" />");
+          out.println("</div>");
+          out.println("</div>");
+          out.println("<div class=\"form-group\">");
+          out.println("<label for=\"proxy_user\" class=\"col-sm-2 control-label\">Proxy username:</label>");
+          out.println("<div class=\"col-sm-10\">");
+          out.println("<input class=\"form-control\" type=\"text\" id=\"proxy_user\" name=\"proxy_user\" value=\"" + proxyUser + "\" />");
+          out.println("</div>");
+          out.println("</div>");
+          out.println("<div class=\"form-group\">");
+          out.println("<label for=\"proxy_password\" class=\"col-sm-2 control-label\">Proxy password:</label>");
+          out.println("<div class=\"col-sm-10\">");
+          out.println("<input class=\"form-control\" type=\"text\" id=\"proxy_password\" name=\"proxy_password\" value=\"" + proxyPassword + "\" />");
+          out.println("</div>");
+          out.println("</div>");
+          out.println("</div>");
           out.println("<a href=\"/log\">View Log</a> &nbsp; &nbsp;");
-          out.println("<a href=\"#\" onclick=\" document.getElementById('proxy_settings').style.display = 'table-row-group' \">Configure Proxy</a> &nbsp; &nbsp;");
-          out.println("<!-- build=1.01 -->");
+          out.println("<a href=\"#\" onclick=\" document.getElementById('proxy_settings').style.display = 'block' \">Configure Proxy</a> &nbsp; &nbsp;");
           out.println("<input type=\"submit\" value=\"Update &rArr;\" />");
-          out.println("</td>  </tr>");
-          out.println("</table>");
           out.println("</form></body></html>");
           ((Request) request).setHandled(true);
         } else if (target.equals("/set_preferences")) {
