@@ -203,7 +203,7 @@ public class Main {
           out.println("<html><head><title>PractiTest xBot preferences</title></head>");
           out.println("<link rel=\"stylesheet\" href=\"https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css\" crossorigin=\"anonymous\"/>");
           out.println("<body><form method=\"POST\" action=\"/set_preferences\" class=\"form-horizontal\">");
-          out.println("<row><h1 class=\"text-center\">PractiTest xBot configuration</h1></row>");
+          out.println("<row><h1 class=\"text-center\">PractiTest xBot configuration Version: " + VERSION + "</h1></row>");
           out.println("<div class=\"form-group\">");
           out.println("<label for=\"server_url\" class=\"col-sm-2 control-label\">PractiTest URL:</label>");
           out.println("<div class=\"col-sm-10\">");
