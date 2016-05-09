@@ -83,7 +83,7 @@ public class Main {
       exitCondition = lock.newCondition();
       initializeHTTPListener();
       addTestRunnerLog("Running version " + VERSION);
-      addTestRunnerLog("Loading with API Key: " + apiToken + " and serverURL: " + serverURL);
+      addTestRunnerLog("Loading with API Token: " + apiToken + " and serverURL: " + serverURL);
       initializeClient();
       initializeScheduler();
       if (!noTrayIcon) {
