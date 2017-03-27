@@ -160,9 +160,9 @@ public class Client {
   }
 
   private StringBuilder constructURL(String command) {
-    StringBuilder sb = new StringBuilder();  
+    StringBuilder sb = new StringBuilder();
     StringBuilder res = sb.append(serverURL).
-      append("/api/automated_tests/").append(command).append(".json?client_id=").append(clientId).
+      append("/api/v1/automated_tests/").append(command).append(".json?client_id=").append(clientId).
       append("&xbot_version=").append(version);
     return res;
   }

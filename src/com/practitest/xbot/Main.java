@@ -149,8 +149,8 @@ public class Main {
         settings.load(new FileReader(settingsFile));
         serverURL = settings.getProperty("server_url", "").trim();
         if(serverURL.equals("")){
-          
-          serverURL = "https://prod.practitest.com";
+
+          serverURL = "https://api.practitest.com";
         }
         apiToken = settings.getProperty("api_token", "").trim();
         clientId = settings.getProperty("client_id", "").trim();
@@ -162,7 +162,7 @@ public class Main {
       }
     }
     else{
-      serverURL = "https://prod.practitest.com";
+      serverURL = "https://api.practitest.com";
     }
   }
 
