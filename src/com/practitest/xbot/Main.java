@@ -43,6 +43,7 @@ public class Main {
 
   private static final String NO_TRAY_ICON_PROPERTY_KEY = "com.practitest.xbot.no_tray_icon";
   private static final String LISTENING_PORT_PROPERTY_KEY = "com.practitest.xbot.listening_port";
+  private static final String SETTINGS_FILE_PROPERTY_KEY = "com.practitest.xbot.settings_file";
 
   private static final String XBOT_TRAY_CAPTION = "PractiTest xBot";
 
@@ -52,6 +53,10 @@ public class Main {
   private static final int MAX_TEST_RUNNER_LOG = 100;
 
   private static final Pattern PARAMETER_PARSER_PATTERN = Pattern.compile("[^\\s\"']+|\"([^\"]*)\"|'([^']*)'");
+
+  private static final File SETTINGS_FILE = System.getProperty(SETTINGS_FILE_PROPERTY_KEY) != null ?
+    new File(System.getProperty(SETTINGS_FILE_PROPERTY_KEY)) :
+    new File(System.getProperty("user.dir"), "xbot.properties");
 
   private Image trayIconImageReady;
   private Image trayIconImageRunning;
@@ -142,11 +147,11 @@ public class Main {
   }
 
   private void loadSettings() {
-    File settingsFile = new File(System.getProperty("user.dir"), "xbot.properties");
-    if (settingsFile.exists()) {
+    logger.info("Loading settings from [" + SETTINGS_FILE.getAbsolutePath() + "]");
+    if (SETTINGS_FILE.exists()) {
       try {
         Properties settings = new Properties();
-        settings.load(new FileReader(settingsFile));
+        settings.load(new FileReader(SETTINGS_FILE));
         serverURL = settings.getProperty("server_url", "").trim();
         if(serverURL.equals("")){
 
@@ -158,16 +163,19 @@ public class Main {
         proxyPort = settings.getProperty("proxy_port", "").trim();
         proxyUser = settings.getProperty("proxy_user", "").trim();
         proxyPassword = settings.getProperty("proxy_password", "").trim();
-      } catch (IOException ignore) {
+      } catch (IOException e) {
+        logger.severe("Failed to load settings: " + e.getMessage());
       }
     }
     else{
+      logger.warning("Settings file doesn't exists, using defaults");
       serverURL = "https://api.practitest.com";
     }
   }
 
   private void saveSettings() {
     // overwrites the xbot.properties!
+    logger.info("Saving settings to [" + SETTINGS_FILE.getAbsolutePath() + "]");
     Properties settings = new Properties();
     settings.setProperty("server_url", serverURL);
     settings.setProperty("api_key", apiToken);
@@ -177,7 +185,7 @@ public class Main {
     settings.setProperty("proxy_user", proxyUser);
     settings.setProperty("proxy_password", proxyPassword);
     try {
-      settings.store(new FileWriter(new File(System.getProperty("user.dir"), "xbot.properties")),
+      settings.store(new FileWriter(SETTINGS_FILE),
               "Please do not change this file manually, it'll be re-written by the application anyway.");
     } catch (IOException e) {
       logger.severe("Failed to store application settings: " + e.getMessage());
