@@ -157,7 +157,7 @@ public class Main {
 
           serverURL = "https://api.practitest.com";
         }
-        apiToken = settings.getProperty("api_token", "").trim();
+        apiToken = settings.getProperty("api_key", "").trim();
         clientId = settings.getProperty("client_id", "").trim();
         proxyHost = settings.getProperty("proxy_host", "").trim();
         proxyPort = settings.getProperty("proxy_port", "").trim();
